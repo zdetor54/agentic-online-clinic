@@ -30,28 +30,28 @@ repos:
     hooks:
       - id: ruff
         name: "Ruff Linter"
-        entry: .venv/Scripts/ruff.exe
+        entry: poetry run ruff
         language: system
         args: [check, --fix, --unsafe-fixes]
         types_or: [python, pyi, jupyter]
 
       - id: ruff-format
         name: "Ruff Formatter"
-        entry: .venv/Scripts/ruff.exe
+        entry: poetry run ruff
         language: system
         args: [format]
         types_or: [python, pyi, jupyter]
 
       - id: nbstripout
         name: "Clean Notebooks"
-        entry: .venv/Scripts/nbstripout.exe
+        entry: poetry run nbstripout
         language: system
         types: [jupyter]
         args: ["--drop-empty-cells"]
 
       - id: ty
         name: "ty type checks"
-        entry: .venv/Scripts/python.exe
+        entry: poetry run ty
         language: system
-        args: [-m, ty, check]
+        args: [check]
         types_or: [python, pyi, jupyter]
