@@ -21,7 +21,7 @@ repos:
     rev: 0.8.11
     hooks:
       - id: uv-lock  # uv.lock always updated
-        args: ['--python', '.venv\\Scripts\\python.exe']
+        args: ['--python', 'python']
       # - id: uv-export   # uncomment if you want uv to generate requirements.txt file
 
 
@@ -30,28 +30,31 @@ repos:
     hooks:
       - id: ruff
         name: "Ruff Linter"
-        entry: poetry run ruff
+        entry: uv run ruff
         language: system
         args: [check, --fix, --unsafe-fixes]
         types_or: [python, pyi, jupyter]
+        pass_filenames: false
 
       - id: ruff-format
         name: "Ruff Formatter"
-        entry: poetry run ruff
+        entry: uv run ruff
         language: system
         args: [format]
         types_or: [python, pyi, jupyter]
+        pass_filenames: false
 
       - id: nbstripout
         name: "Clean Notebooks"
-        entry: poetry run nbstripout
+        entry: uv run nbstripout
         language: system
         types: [jupyter]
         args: ["--drop-empty-cells"]
 
       - id: ty
         name: "ty type checks"
-        entry: poetry run ty
+        entry: uv run ty
         language: system
         args: [check]
         types_or: [python, pyi, jupyter]
+        pass_filenames: false
