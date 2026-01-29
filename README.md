@@ -82,6 +82,7 @@ Docs & Standards: [AI Specialists SharePoint](https://bjss.sharepoint.com/sites/
 * Edit `configs/config.yaml`
   * Align `src/core/config.py` with `configs/config.yaml`
 * Setup PAT token and add to Github repo (see separate section below)
+! uv sync --python .venv\Scripts\python.exe (gettign errors without it)
 
 Github settings suggestions:
 

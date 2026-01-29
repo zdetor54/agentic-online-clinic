@@ -11,12 +11,15 @@ readme = "README.md"
 # run `uv add <package>` to add a dependency
 dependencies = [
     "ai-cgi-branding>=0.1.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.128.0",
     "loguru>=0.7.3",
     "pandas>=2.3.1",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.1.1",
     "streamlit>=1.46.1",
+    "uvicorn>=0.40.0",
 ]
 
 # run `uv add <package> --dev` to add a dev dependency
