@@ -1,3 +1,15 @@
+
+# Node.js
+node_modules/
+package-lock.json
+package.json
+
+# Project configuration and tool directories
+.github/
+.rulesync/
+.serena
+rulesync.jsonc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
