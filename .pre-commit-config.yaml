@@ -21,6 +21,7 @@ repos:
     rev: 0.8.11
     hooks:
       - id: uv-lock  # uv.lock always updated
+        args: ['--python', 'python']
       # - id: uv-export   # uncomment if you want uv to generate requirements.txt file
 
 

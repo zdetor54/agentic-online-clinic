@@ -1,10 +1,9 @@
 [project]
-name = "BJSS-AI"
+name = "agentic-online-clinic"
 version = "0.1.0"
 description = ""
 authors = [
-    { name = "Name", email = "first.last@cgi.com" },
-    { name = "Name", email = "first.last@cgi.com" },
+    { name = "Name", email = "zacharias.detorakis@cgi.com" }
 ]
 requires-python = ">=3.11,<=3.14"
 readme = "README.md"
