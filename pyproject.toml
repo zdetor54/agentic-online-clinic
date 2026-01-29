@@ -1,0 +1,136 @@
+[project]
+name = "BJSS-AI"
+version = "0.1.0"
+description = ""
+authors = [
+    { name = "Name", email = "first.last@cgi.com" },
+    { name = "Name", email = "first.last@cgi.com" },
+]
+requires-python = ">=3.11,<=3.14"
+readme = "README.md"
+
+# run `uv add <package>` to add a dependency
+dependencies = [
+    "ai-cgi-branding>=0.1.0",
+    "loguru>=0.7.3",
+    "pandas>=2.3.1",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.1.1",
+    "streamlit>=1.46.1",
+]
+
+# run `uv add <package> --dev` to add a dev dependency
+[dependency-groups]
+dev = [
+    "ipykernel>=6.30.1",
+    "nbstripout>=0.8.1",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.1",
+    "ruff>=0.12.9",
+    "ty>=0.0.1a19",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+# If you're using private packages, you can add them here like this:
+[tool.uv.sources]
+ai-cgi-branding = { git = "https://github.com/bjss/ai-cgi-branding.git" }
+
+[tool.ruff.lint.mccabe]
+max-complexity = 6 # Maximum McCabe complexity
+
+[tool.ruff.lint]
+# Allow auto-fix for all applicable rules
+extend-fixable = ["ALL"]
+
+# Linting rule reference: https://docs.astral.sh/ruff/rules/
+# This setup balances correctness, readability, and performance for data science / GenAI pipelines.
+select = [
+    # 1) Style & Readability
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "I",    # isort: import sorting
+    "N",    # pep8-naming
+    "SIM",  # code simplification suggestions
+    "FURB", # refurbished code style suggestions
+    "UP",   # pyupgrade: modern Python syntax
+    "C4",   # comprehension best practices
+    # "D",    # docstring conventions - consider uncommenting for production systems
+
+    # 2) Correctness & Reliability
+    "F",   # pyflakes: undefined names, unused imports
+    "B",   # bugbear: common Python bugs
+    "ARG", # unused function arguments
+    "BLE", # blind excepts (broad try/except)
+    "TRY", # try-except anti-patterns
+    "RET", # return statements best practices
+    "A",   # builtins: disallow shadowing
+
+    # 3) Complexity & Performance
+    "C",    # mccabe: cyclomatic complexity
+    "PERF", # performance anti-patterns
+
+    # 4) Security
+    "S", # bandit: security issues
+
+    # 5) Typing & API Contracts
+    "ANN", # missing type annotations
+    "PYI", # Python stub files
+
+    # 6) Framework & Ecosystem Specific
+    "PD",   # pandas-specific issues
+    "NPY",  # numpy-specific issues
+    "DTZ",  # datetime timezone awareness
+    "AIR",  # Airflow-specific rules
+    "FAST", # FastAPI-specific rules
+    "PT",   # pytest-specific rules
+    "PTH",  # pathlib over os.path
+
+    # 7) Tooling & Meta
+    "PL",  # pylint rules
+    "PIE", # miscellaneous best practices
+    "RUF", # ruff-specific rules
+]
+
+
+ignore = [
+    "E501",   # allow long lines (ruff formats code, so this is just comments)
+    "RUF001", # ambiguous Unicode (e.g. variable names with symbols)
+    "TRY003", # don't force long error messages
+    "TRY300", # allow bare `return` instead of `else: return`
+    "DTZ005", # allow naive `datetime.now()` calls
+    "S608",   # allow string SQL queries (e.g. for pandas.read_sql)
+    "PD901",  # allow variable named `df` (common in data science)
+    "NPY002", # allow legacy numpy RNG (e.g. np.random)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = [ # Relax some rules for Jupyter notebooks
+    "ANN",     # skip type annotations (not practical in notebooks)
+    "BLE",     # allow broad except blocks in exploratory code
+    "PLC0415", # allow non-top-level imports (typical in notebooks)
+    "PLR0913", # allow many function args (e.g. for model training)
+    "DTZ001",  # allow naive datetimes
+    "PLR2004", # allow magic numbers (e.g. learning rates)
+    "E722",    # allow bare except (e.g. in notebooks or quick iterations)
+]
+
+"tests/**" = [ # Relax some rules for tests
+    "PLR2004", # magic numbers
+    "PLR0911", # too many return statements
+    "PLR0912", # too many branches
+    "C901",    # too complex tests
+    "S101",    # asserts
+    "ANN",     # annotations
+    "ARG001",  # unused arguments
+]

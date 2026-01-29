@@ -1,0 +1,32 @@
+# config.yaml - Project configuration
+# ----------------------------------------------------------------------------------
+# Rule of thumb:
+# - Tunable logic, paths, model behavior → keep in `config.yaml`
+# - Secrets and environment-specific values (e.g. API keys, database credentials, logging level) → keep in `.env`
+# ----------------------------------------------------------------------------------
+# Any changes to this structure, needs to be reflected in the code: src/core/config.py
+
+general:
+  name: 'BJSS AI'
+  logo_type: 'colour' # or white
+  random_state: 42
+
+paths:
+  data: 'data'
+  logs: 'logs'
+  plots: 'plots'
+  rag_index: 'rag_index'
+
+ml:
+  train_test_split: 0.2
+  model_name: 'xgboost'
+  model_params:
+    n_estimators: 100
+
+llm:
+  model_name: 'gpt-4o-mini'
+  embedding_model_name: 'text-embedding-3-small'
+  temperature: 0.7
+  chunk_size: 512
+  retrieval_k: 5
+  rerank: true
