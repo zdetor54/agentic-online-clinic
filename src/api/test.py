@@ -2,13 +2,13 @@ from datetime import date
 
 from loguru import logger
 
-from src.api.crud import (
+from src.api.patients.crud import (
     create_patient,
     delete_patient,
     get_patient_by_id,
     list_patients,
 )
-from src.api.models import PatientCreate
+from src.api.patients.schemas import PatientCreate
 
 # Create a sample patient
 patient = PatientCreate(

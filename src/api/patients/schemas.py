@@ -1,28 +1,10 @@
-"""Pydantic models for request/response validation."""
+"""Pydantic schemas for patient request/response validation."""
 
 import re
 from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
-
-# Database schema definition
-PATIENTS_TABLE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS patients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    date_of_birth TEXT NOT NULL,
-    gender TEXT NOT NULL,
-    phone TEXT,
-    email TEXT,
-    address TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_by TEXT
-)
-"""
 
 
 class PatientCreate(BaseModel):
@@ -38,14 +20,16 @@ class PatientCreate(BaseModel):
     created_by: str | None = None
 
     @field_validator("date_of_birth")
-    def dob_not_in_future(self, v: date) -> date:
+    @classmethod
+    def dob_not_in_future(cls, v: date) -> date:
         if v > datetime.now().date():
             raise ValueError("Date of birth cannot be in the future")
         return v
 
     @field_validator("phone")
-    def phone_valid(self, v: str | None) -> str | None:
-        return validate_phone_number(self, v)
+    @classmethod
+    def phone_valid(cls, v: str | None) -> str | None:
+        return validate_phone_number(cls, v)
 
 
 class PatientResponse(PatientCreate):

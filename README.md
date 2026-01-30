@@ -29,6 +29,8 @@ uv run streamlit run ui/app.py
 # Optional one-off developer setup
 uv run pre-commit install            # Enable git hooks
 ./scripts/uv_dependency_relock.sh    # Update all packages to latest
+
+streamlit run .\ui\clinic.py
 ```
 
 ## Overview

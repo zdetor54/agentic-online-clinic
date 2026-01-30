@@ -1,7 +1,7 @@
 """CRUD operations for patient management."""
 
-from .database import get_connection
-from .models import PatientCreate, PatientResponse
+from ..database import get_connection
+from .schemas import PatientCreate, PatientResponse
 
 
 def create_patient(patient: PatientCreate) -> int:

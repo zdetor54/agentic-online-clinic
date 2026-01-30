@@ -30,7 +30,7 @@ repos:
     hooks:
       - id: ruff
         name: "Ruff Linter"
-        entry: uv run ruff
+        entry: ruff
         language: system
         args: [check, --fix, --unsafe-fixes]
         types_or: [python, pyi, jupyter]
@@ -38,7 +38,7 @@ repos:
 
       - id: ruff-format
         name: "Ruff Formatter"
-        entry: uv run ruff
+        entry: ruff
         language: system
         args: [format]
         types_or: [python, pyi, jupyter]
@@ -46,14 +46,14 @@ repos:
 
       - id: nbstripout
         name: "Clean Notebooks"
-        entry: uv run nbstripout
+        entry: nbstripout
         language: system
         types: [jupyter]
         args: ["--drop-empty-cells"]
 
       - id: ty
         name: "ty type checks"
-        entry: uv run ty
+        entry: ty
         language: system
         args: [check]
         types_or: [python, pyi, jupyter]

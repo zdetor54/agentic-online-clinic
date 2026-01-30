@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from src.api.models import PATIENTS_TABLE_SCHEMA
+from src.api.patients.models import PATIENTS_TABLE_SCHEMA
 from src.core.config import Config
 
 # Load config and get database path
