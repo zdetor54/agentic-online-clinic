@@ -196,5 +196,5 @@ uv run pytest
 ```
 
 
-uv add fastapi uvicorn --python .venv\Scripts\python.exe
+uvicorn src.api.main:app --reload
 streamlit run .\ui\clinic.py
