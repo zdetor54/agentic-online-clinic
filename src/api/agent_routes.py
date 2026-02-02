@@ -4,8 +4,6 @@ from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel
 
-from src.llm.agent import process_agent_request
-
 agent_router = APIRouter(prefix="/agent", tags=["agent"])
 
 
@@ -47,7 +45,9 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
     logger.info(f"Received agent request: {request.prompt[:100]}...")
 
     try:
-        result = await process_agent_request(request.prompt, request.model_name)
+        from src.llm.patient_agent import process_patient_agent_request
+
+        result = await process_patient_agent_request(request.prompt, request.model_name)
         if (
             not isinstance(result, dict)
             or "success" not in result

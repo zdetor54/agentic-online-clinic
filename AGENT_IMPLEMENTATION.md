@@ -11,7 +11,7 @@ Natural language → PydanticAI Agent → FastAPI Tools → Database
 ## Files Created/Modified
 
 ### New Files:
-1. **[src/llm/agent.py](src/llm/agent.py)** - PydanticAI orchestrator with 3 tools
+1. **[src/llm/patient_agent.py](src/llm/patient_agent.py)** - PydanticAI orchestrator with 3 tools
    - `search_patients` - Search by name/phone
    - `get_patient_by_id` - Fetch specific patient
    - `create_patient` - Create new patient record

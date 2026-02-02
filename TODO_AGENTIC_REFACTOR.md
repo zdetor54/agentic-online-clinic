@@ -3,7 +3,7 @@
 ## Task 1: Move Filtering Logic to CRUD Layer
 - Filtering logic is duplicated in:
   - [src/api/patients/routes.py] → function: list_patients_endpoint
-  - [src/llm/agent.py] → function: search_patients (uses HTTP API)
+  - [src/llm/patient_agent.py] → function: search_patients (uses HTTP API)
 - Create or update [src/api/patients/crud.py]:
   - New function: list_patients_filtered(name: str | None, phone: str | None) -> list[PatientResponse]
 - Both endpoint and agent tool will use this.
@@ -14,7 +14,7 @@
 - Instead, refactor filtering logic into CRUD and call from both endpoint and agent tool.
 
 ## Task 2: Refactor Agent Tools to Use CRUD Directly
-- [src/llm/agent.py]:
+- [src/llm/patient_agent.py]:
   - search_patients (uses httpx to call API)
   - get_patient_by_id (uses httpx to call API)
   - create_patient (uses httpx to call API)
@@ -37,7 +37,7 @@
 - Update documentation to describe the new shared CRUD approach and agent specialization.
 
 ## Task 6: (Optional) Modularize Agent Creation
-- [src/llm/agent.py]: get_agent (single agent for all logic)
+- [src/llm/patient_agent.py]: get_patient_agent (single agent for all patient logic)
 - Refactor to [src/llm/patient_agent.py]: get_patient_agent (for patient logic)
 - [src/llm/booking_agent.py]: get_booking_agent (for booking logic, if/when needed)
 
@@ -46,6 +46,6 @@
 - [src/llm/orchestrator.py] (or similar): orchestrate multi-step workflows by calling specialized agents.
 
 ## Task 8: Code Cleanup
-- [src/llm/agent.py]: httpx usage, duplicated logic, unused imports.
-- Remove httpx and any now-unused code from [src/llm/agent.py] and related files.
+- [src/llm/patient_agent.py]: httpx usage, duplicated logic, unused imports.
+- Remove httpx and any now-unused code from [src/llm/patient_agent.py] and related files.
 - Ensure all modules follow project style and type hinting standards.
