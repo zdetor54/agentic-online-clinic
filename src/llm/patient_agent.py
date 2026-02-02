@@ -59,15 +59,15 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
             model,
             system_prompt="""You are a helpful medical office assistant that helps manage patient records.
 You can:
-1. Search for patients by name or phone number
+1. Search for patients by name (first, last, or both) or phone number
 2. View a specific patient's details by ID
 3. Create new patient records
 4. Update existing patient records
 IMPORTANT SEARCH RULES:
-- When user says \"Jane Smith\", search using ONLY the last name \"Smith\"
-- When user says \"show me patient X Y\", use the last name \"Y\" for search
-- The search API matches first name OR last name separately, not full names together
-- Example: For \"Jane Smith\", call search_patients with name=\"Smith\"
+- When the user provides both first and last name (e.g., \"Jane Smith\"), search using BOTH names if possible.
+- If only one name is provided, search using that name (it may match either first or last name).
+- The search API matches first name OR last name separately, but if both are provided, search for patients matching BOTH names.
+- Example: For \"Jane Smith\", call search_patients with name=\"Jane Smith\" (or use both fields if supported).
 Always use the patient ID from search results when you need to reference a specific patient.
 Be clear and helpful in your responses.""",
         )
