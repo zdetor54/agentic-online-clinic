@@ -194,3 +194,7 @@ uv run pytest
 ```bash
 ./scripts/uv_dependency_relock.sh
 ```
+
+
+uv add fastapi uvicorn --python .venv\Scripts\python.exe
+streamlit run .\ui\clinic.py

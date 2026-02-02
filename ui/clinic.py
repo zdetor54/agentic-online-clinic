@@ -37,14 +37,102 @@ st.sidebar.markdown("""
 
 # --- Initialize session state ---
 if "view" not in st.session_state:
-    st.session_state.view = "search"  # 'search', 'create', 'view'
+    st.session_state.view = "search"  # 'search', 'create', 'view', 'agent'
 if "selected_patient_id" not in st.session_state:
     st.session_state.selected_patient_id = None
 if "search_results" not in st.session_state:
     st.session_state.search_results = []
+if "agent_response" not in st.session_state:
+    st.session_state.agent_response = None
+
+# --- Top Navigation ---
+col_nav1, col_nav2 = st.columns(2)
+with col_nav1:
+    if st.button(
+        "📋 Manual Mode",
+        use_container_width=True,
+        type="primary"
+        if st.session_state.view in ["search", "create", "view", "edit"]
+        else "secondary",
+    ):
+        st.session_state.view = "search"
+        st.rerun()
+with col_nav2:
+    if st.button(
+        "🤖 Agent Mode",
+        use_container_width=True,
+        type="primary" if st.session_state.view == "agent" else "secondary",
+    ):
+        st.session_state.view = "agent"
+        st.rerun()
+
+st.markdown("---")
+
+# --- Agent View ---
+if st.session_state.view == "agent":
+    st.markdown(
+        "<h2 style='text-align: center;'>🤖 Agentic Assistant</h2>",
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "💡 Try: 'Show me patient John Doe' or 'Create a new patient named Jane Smith born on 1990-05-15'"
+    )
+
+    # Model selection
+    col_prompt, col_model = st.columns([3, 1])
+    with col_model:
+        model_choice = st.selectbox(
+            "Model",
+            ["gpt-4.1-mini", "gpt-4", "gpt-3.5-turbo"],
+            help="Select Azure OpenAI deployment",
+        )
+
+    user_prompt = st.text_area(
+        "Enter your request in natural language:",
+        height=100,
+        placeholder="e.g., Find patient with phone 555-1234\ne.g., Create patient Sarah Johnson, DOB 1985-03-20, Female",
+    )
+
+    if st.button("Submit", use_container_width=True, type="primary"):
+        if user_prompt.strip():
+            with st.spinner("🔄 Agent is processing your request..."):
+                try:
+                    response = requests.post(
+                        f"{API_BASE_URL}/agent/process",
+                        json={"prompt": user_prompt, "model_name": model_choice},
+                        timeout=30,
+                    )
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.session_state.agent_response = result
+                    else:
+                        st.error(f"❌ Agent failed: {response.text}")
+                        st.session_state.agent_response = None
+                except RequestsConnectionError:
+                    st.error(
+                        "❌ Cannot connect to API server. Ensure FastAPI is running."
+                    )
+                    logger.error("Failed to connect to API server")
+                except Timeout:
+                    st.error("❌ Request timed out. Try again.")
+                    logger.error("Agent request timed out")
+                except Exception as e:
+                    st.error(f"❌ Error: {e!s}")
+                    logger.exception("Agent request error")
+        else:
+            st.warning("Please enter a prompt.")
+
+    # Display agent response
+    if st.session_state.agent_response:
+        st.markdown("### 📝 Agent Response")
+        response = st.session_state.agent_response
+        st.success(response.get("message", "Request processed successfully."))
+
+        if response.get("data"):
+            st.json(response["data"])
 
 # --- Search View ---
-if st.session_state.view == "search":
+elif st.session_state.view == "search":
     st.markdown(
         "<h2 style='text-align: center;'>Patient Search</h2>", unsafe_allow_html=True
     )

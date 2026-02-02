@@ -16,6 +16,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pandas>=2.3.1",
     "pydantic>=2.11.7",
+    "pydantic-ai>=1.50.0",
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.1.1",
     "streamlit>=1.46.1",
@@ -120,6 +121,7 @@ ignore = [
     "PD901",  # allow variable named `df` (common in data science)
     "NPY002", # allow legacy numpy RNG (e.g. np.random)
     "PLC0415", # allow non-top-level imports globally
+    "PLR0913", # allow many function args (e.g. for API endpoints)
 ]
 
 [tool.ruff.lint.per-file-ignores]
