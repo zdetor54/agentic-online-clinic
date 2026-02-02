@@ -1,5 +1,7 @@
 """CRUD operations for patient management."""
 
+from loguru import logger
+
 from ..database import get_connection
 from .schemas import PatientCreate, PatientResponse
 
@@ -46,11 +48,36 @@ def get_patient_by_id(patient_id: int) -> PatientResponse | None:
     return None
 
 
-def list_patients() -> list[PatientResponse]:
+def list_patients(
+    name: str | None = None, phone: str | None = None
+) -> list[PatientResponse]:
     """Fetch all patients."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM patients")
+
+    where_clauses = []
+    query_params = []
+
+    if phone:
+        where_clauses.append("phone LIKE ?")
+        query_params.append(f"%{phone}%")
+
+    if name:
+        name_parts = [w.strip() for w in name.split() if w.strip()]
+        for part in name_parts:
+            where_clauses.append(
+                "(lower(first_name) LIKE ? OR lower(last_name) LIKE ?)"
+            )
+            query_params.extend([f"%{part.lower()}%", f"%{part.lower()}%"])
+
+    where_statement = ""
+    if where_clauses:
+        where_statement = "WHERE " + " AND ".join(where_clauses)
+
+    _sql = f"SELECT * FROM patients {where_statement}"
+    logger.info(f"list_patients SQL: {_sql} with params {query_params}")
+
+    cursor.execute(_sql, query_params)
     rows = cursor.fetchall()
     conn.close()
     return [PatientResponse(**dict(row)) for row in rows]  # type: ignore[arg-type]

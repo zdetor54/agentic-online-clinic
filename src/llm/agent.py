@@ -19,11 +19,21 @@ class PatientToolResult(BaseModel):
 
     success: bool
     message: str
-    data: dict[str, Any] | list[dict[str, Any]] | None = None
+    data: list[dict[str, Any]] = []
 
 
 # Create agent instance (will be initialized when needed)
 _agent: Agent | None = None
+
+
+def format_patient_info(patient: dict) -> str:
+    info = (
+        f"ID: {patient['id']}, Name: {patient['first_name']} {patient['last_name']}, "
+        f"DOB: {patient.get('date_of_birth', 'N/A')}, Gender: {patient.get('gender', 'N/A')}"
+    )
+    if patient.get("phone"):
+        info += f", Phone: {patient['phone']}"
+    return info
 
 
 def get_agent(model_name: str | None = None) -> Agent:
@@ -123,31 +133,23 @@ async def search_patients(
             if response.status_code == 200:
                 patients = response.json()
                 if patients:
-                    # Format patient info clearly
-                    patient_list = []
-                    for p in patients:
-                        patient_info = (
-                            f"ID: {p['id']}, Name: {p['first_name']} {p['last_name']}, "
-                            f"DOB: {p['date_of_birth']}, Gender: {p['gender']}"
-                        )
-                        if p.get("phone"):
-                            patient_info += f", Phone: {p['phone']}"
-                        patient_list.append(patient_info)
-
+                    patient_list = [format_patient_info(p) for p in patients]
                     return PatientToolResult(
                         success=True,
                         message=f"Found {len(patients)} patient(s):\n"
                         + "\n".join(patient_list),
-                        data=patients,
+                        data=patients if isinstance(patients, list) else [patients],
                     )
                 return PatientToolResult(
                     success=True,
                     message=f"No patients found with name='{name}' or phone='{phone}'",
+                    data=[],
                 )
 
             return PatientToolResult(
                 success=False,
                 message=f"Search failed: {response.text}",
+                data=[],
             )
 
     except Exception as e:
@@ -181,23 +183,26 @@ async def get_patient_by_id(
                 patient = response.json()
                 return PatientToolResult(
                     success=True,
-                    message=f"Found patient: {patient['first_name']} {patient['last_name']}",
-                    data=patient,
+                    message=format_patient_info(patient),
+                    data=[patient],
                 )
 
             if response.status_code == 404:
                 return PatientToolResult(
-                    success=False, message=f"Patient with ID {patient_id} not found"
+                    success=True,
+                    message=f"No patient found with ID {patient_id}",
+                    data=[],
                 )
 
             return PatientToolResult(
                 success=False,
                 message=f"Failed to retrieve patient: {response.text}",
+                data=[],
             )
 
     except Exception as e:
         logger.error(f"Error fetching patient: {e}")
-        return PatientToolResult(success=False, message=f"Error: {e!s}")
+        return PatientToolResult(success=False, message=f"Error: {e!s}", data=[])
 
 
 async def create_patient(
@@ -250,12 +255,14 @@ async def create_patient(
                 return PatientToolResult(
                     success=True,
                     message=f"Successfully created patient: {first_name} {last_name}",
-                    data=patient,
+                    data=[patient],
                 )
 
             error_detail = response.json().get("detail", response.text)
             return PatientToolResult(
-                success=False, message=f"Failed to create patient: {error_detail}"
+                success=False,
+                message=f"Failed to create patient: {error_detail}",
+                data=[],
             )
 
     except Exception as e:

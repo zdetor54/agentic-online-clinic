@@ -4,7 +4,7 @@ from typing import Never
 
 from fastapi import APIRouter, HTTPException, status
 
-from .crud import create_patient, get_patient_by_id, update_patient
+from .crud import create_patient, get_patient_by_id, list_patients, update_patient
 from .schemas import PatientCreate, PatientResponse
 
 patient_router = APIRouter(prefix="/patients", tags=["patients"])
@@ -45,20 +45,7 @@ def list_patients_endpoint(
     Returns:
         List of matching PatientResponse objects
     """
-    from .crud import list_patients
-
-    all_patients = list_patients()
-
-    def matches(patient: PatientResponse) -> bool:
-        name_match = (
-            not name
-            or name.lower() in patient.first_name.lower()
-            or name.lower() in patient.last_name.lower()
-        )
-        phone_match = not phone or (patient.phone and phone in patient.phone)
-        return bool(name_match) and bool(phone_match)
-
-    return [p for p in all_patients if matches(p)]
+    return list_patients(name=name, phone=phone)
 
 
 @patient_router.post(
@@ -164,4 +151,47 @@ def update_patient_endpoint(patient_id: int, patient: PatientCreate) -> PatientR
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update patient: {e!s}",
+        ) from e
+
+
+# --- DELETE endpoint ---
+@patient_router.delete(
+    "/{patient_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a patient",
+    description="Delete a patient by ID. Returns 204 if successful, 404 if not found.",
+)
+def delete_patient_endpoint(patient_id: int) -> None:
+    """
+    Delete a patient by ID.
+
+    Args:
+        patient_id: The ID of the patient to delete
+
+    Returns:
+        None (204 No Content)
+
+    Raises:
+        HTTPException: 404 if not found, 500 if deletion fails
+    """
+    from .crud import delete_patient, get_patient_by_id
+
+    # Check if patient exists
+    patient = get_patient_by_id(patient_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient with ID {patient_id} not found",
+        )
+    try:
+        success = delete_patient(patient_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete patient",
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete patient: {e!s}",
         ) from e
