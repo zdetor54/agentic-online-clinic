@@ -8,6 +8,8 @@ from loguru import logger
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout
 
+from ui.patient_page import show_patient_page
+
 # API Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 PATIENTS_ENDPOINT = f"{API_BASE_URL}/patients/"
@@ -54,152 +56,15 @@ with col_nav2:
 st.markdown("---")
 
 # --- ROUTING: Check query params and render appropriate page ---
+
 patient_id = st.query_params.get("patient_id")
 agent_mode = st.query_params.get("agent")
 edit_mode = st.query_params.get("edit")
 create_mode = st.query_params.get("create")
 
 if patient_id:
-    # ============= PATIENT DETAILS PAGE =============
-    st.markdown(
-        "<h2 style='text-align: center;'>Patient Details</h2>", unsafe_allow_html=True
-    )
-
-    try:
-        resp = requests.get(f"{PATIENTS_ENDPOINT}{patient_id}", timeout=5)
-        if resp.status_code == 200:
-            patient = resp.json()
-
-            if edit_mode == "1":
-                # EDIT MODE
-                st.markdown(
-                    f"### Edit Patient: {patient['first_name']} {patient['last_name']}"
-                )
-                with st.form("edit_patient_form"):
-                    first_name = st.text_input(
-                        "First Name", value=patient["first_name"]
-                    )
-                    last_name = st.text_input("Last Name", value=patient["last_name"])
-                    dob = st.date_input(
-                        "Date of Birth",
-                        value=datetime.datetime.strptime(
-                            patient["date_of_birth"], "%Y-%m-%d"
-                        ).date(),
-                        min_value=datetime.date(1900, 1, 1),
-                    )
-                    gender = st.selectbox(
-                        "Gender",
-                        ["Male", "Female", "Other"],
-                        index=["Male", "Female", "Other"].index(patient["gender"]),
-                    )
-                    phone = st.text_input(
-                        "Phone Number", value=patient.get("phone", "")
-                    )
-                    email = st.text_input("Email", value=patient.get("email", ""))
-                    address = st.text_area("Address", value=patient.get("address", ""))
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        cancel = st.form_submit_button(
-                            "Cancel", use_container_width=True
-                        )
-                    with col2:
-                        submitted = st.form_submit_button(
-                            "Update Patient", use_container_width=True, type="primary"
-                        )
-
-                    if cancel:
-                        st.query_params["patient_id"] = patient_id
-                        if "edit" in st.query_params:
-                            del st.query_params["edit"]
-                        st.rerun()
-
-                    if submitted:
-                        if not first_name or not last_name or not gender:
-                            st.error("First name, last name, and gender are required.")
-                        else:
-                            payload = {
-                                "first_name": first_name.strip(),
-                                "last_name": last_name.strip(),
-                                "date_of_birth": dob.isoformat(),
-                                "gender": gender,
-                                "phone": phone.strip() if phone else None,
-                                "email": email.strip() if phone else None,
-                                "address": address.strip() if address else None,
-                                "updated_by": "streamlit_user",
-                            }
-                            try:
-                                response = requests.put(
-                                    f"{PATIENTS_ENDPOINT}{patient_id}",
-                                    json=payload,
-                                    timeout=5,
-                                )
-                                if response.status_code == 200:
-                                    st.success(
-                                        f"✅ Patient {first_name} {last_name} updated successfully!"
-                                    )
-                                    st.query_params["patient_id"] = patient_id
-                                    if "edit" in st.query_params:
-                                        del st.query_params["edit"]
-                                    st.rerun()
-                                else:
-                                    st.error(
-                                        f"❌ Failed to update patient: {response.json().get('detail', response.text)}"
-                                    )
-                            except Exception as e:
-                                st.error(f"❌ Error: {e!s}")
-            else:
-                # READ-ONLY MODE
-                st.markdown(f"### {patient['first_name']} {patient['last_name']}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.text_input(
-                        "First Name", value=patient["first_name"], disabled=True
-                    )
-                    st.text_input(
-                        "Last Name", value=patient["last_name"], disabled=True
-                    )
-                    st.text_input(
-                        "Date of Birth", value=patient["date_of_birth"], disabled=True
-                    )
-                    st.text_input("Gender", value=patient["gender"], disabled=True)
-                with col2:
-                    st.text_input(
-                        "Phone", value=patient.get("phone", ""), disabled=True
-                    )
-                    st.text_input(
-                        "Email", value=patient.get("email", ""), disabled=True
-                    )
-                    st.text_area(
-                        "Address",
-                        value=patient.get("address", ""),
-                        disabled=True,
-                        height=100,
-                    )
-
-                col_back, col_edit = st.columns(2)
-                with col_back:
-                    if st.button("← Back to Search", use_container_width=True):
-                        st.query_params.clear()
-                        st.rerun()
-                with col_edit:
-                    if st.button(
-                        "Edit Patient", use_container_width=True, type="primary"
-                    ):
-                        st.query_params["patient_id"] = patient_id
-                        st.query_params["edit"] = "1"
-                        st.rerun()
-        else:
-            st.error(f"Patient not found (ID: {patient_id})")
-            if st.button("← Back to Search"):
-                st.query_params.clear()
-                st.rerun()
-    except Exception as e:
-        st.error(f"Error loading patient: {e!s}")
-        logger.exception(f"Error loading patient {patient_id}")
-        if st.button("← Back to Search"):
-            st.query_params.clear()
-            st.rerun()
+    editable = edit_mode == "1"
+    show_patient_page(int(patient_id), editable=editable)
 
 elif create_mode == "1":
     # ============= CREATE PATIENT PAGE =============
