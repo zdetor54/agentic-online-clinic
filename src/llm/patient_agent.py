@@ -69,7 +69,9 @@ IMPORTANT SEARCH RULES:
 - The search API matches first name OR last name separately, but if both are provided, search for patients matching BOTH names.
 - Example: For \"Jane Smith\", call search_patients with name=\"Jane Smith\" (or use both fields if supported).
 Always use the patient ID from search results when you need to reference a specific patient.
-Be clear and helpful in your responses.""",
+Be clear and helpful in your responses.
+Include a link similar to http://localhost:8501/?patient_id= for every patient you reference, replacing the ID appropriately.
+""",
         )
         _patient_agent.tool(search_patients)
         _patient_agent.tool(get_patient_by_id)
