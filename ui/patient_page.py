@@ -39,7 +39,10 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
     st.markdown(patient_info_html, unsafe_allow_html=True)
 
     if st.button("Edit Patient", use_container_width=True):
-        st.query_params = {"patient_id": str(patient_id), "edit": "1"}
+        # use experimental_set_query_params to avoid brittle mutation behavior
+        st.query_params.clear()
+        st.query_params["patient_id"] = str(patient_id)
+        st.query_params["edit"] = "1"
         st.rerun()
 
 
@@ -87,7 +90,9 @@ def render_edit_patient(patient: dict, patient_id: int) -> None:
                 )
                 if resp.status_code == 200:
                     st.success("✅ Patient updated successfully!")
-                    st.query_params = {"patient_id": str(patient_id)}
+                    st.query_params.clear()
+                    st.query_params["patient_id"] = str(patient_id)
+
                     st.rerun()
                 else:
                     st.error(resp.json().get("detail", resp.text))
@@ -131,7 +136,9 @@ def render_create_patient() -> None:
                 if resp.status_code == HTTP_STATUS_CREATED:
                     patient_id = resp.json().get("id")
                     st.success("✅ Patient created successfully!")
-                    st.query_params = {"patient_id": str(patient_id)}
+                    st.query_params.clear()
+                    st.query_params["patient_id"] = str(patient_id)
+
                     st.rerun()
                 else:
                     st.error(resp.json().get("detail", resp.text))

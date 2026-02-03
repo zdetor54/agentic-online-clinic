@@ -45,26 +45,42 @@ if "agent_response" not in st.session_state:
 col_nav1, col_nav2 = st.columns(2)
 with col_nav1:
     if st.button("📋 Manual Mode", use_container_width=True):
+        st.session_state.pop("active_patient_id", None)
         st.query_params.clear()
         st.rerun()
+
+
 with col_nav2:
     if st.button("🤖 Agent Mode", use_container_width=True):
+        st.session_state.pop("active_patient_id", None)
         st.query_params.clear()
         st.query_params["agent"] = "1"
         st.rerun()
+
 
 st.markdown("---")
 
 # --- ROUTING: Check query params and render appropriate page ---
 
 patient_id = st.query_params.get("patient_id")
+
+if isinstance(patient_id, list):
+    patient_id = patient_id[0]
+
+# persist patient id across reruns
+if patient_id:
+    st.session_state["active_patient_id"] = patient_id
+
 agent_mode = st.query_params.get("agent")
 edit_mode = st.query_params.get("edit")
 create_mode = st.query_params.get("create")
 
+patient_id = st.session_state.get("active_patient_id")
+
 if patient_id:
     editable = edit_mode == "1"
     show_patient_page(int(patient_id), editable=editable)
+    st.stop()
 
 elif create_mode == "1":
     # ============= CREATE PATIENT PAGE =============
@@ -118,6 +134,7 @@ elif create_mode == "1":
                         logger.info(
                             f"Created patient ID {patient_data['id']}: {first_name} {last_name}"
                         )
+                        st.query_params.clear()
                         st.query_params["patient_id"] = str(patient_data["id"])
                         st.rerun()
                     else:
@@ -210,6 +227,7 @@ else:
         search_btn = st.button("Search", use_container_width=True)
     with col2:
         if st.button("Create New Patient", use_container_width=True):
+            st.query_params.clear()
             st.query_params["create"] = "1"
             st.rerun()
 
