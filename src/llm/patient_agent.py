@@ -1,6 +1,7 @@
 """Agentic patient management orchestrator using PydanticAI and direct CRUD access."""
 
 import os
+import time
 from datetime import datetime
 from typing import Any, Literal
 
@@ -12,6 +13,7 @@ from pydantic_ai.providers.azure import AzureProvider
 
 from src.api.patients import crud
 from src.api.patients.schemas import PatientCreate
+from src.core.llm_logger import get_llm_logger
 
 
 class PatientToolResult(BaseModel):
@@ -46,7 +48,7 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
     """
     global _patient_agent  # noqa: PLW0603
     deployment_name = model_name or os.getenv(
-        "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-mini"
+        "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-nano"
     )
     if _patient_agent is None:
         azure_provider = AzureProvider(
@@ -70,7 +72,7 @@ IMPORTANT SEARCH RULES:
 - Example: For \"Jane Smith\", call search_patients with name=\"Jane Smith\" (or use both fields if supported).
 Always use the patient ID from search results when you need to reference a specific patient.
 Be clear and helpful in your responses.
-Include a link similar to http://localhost:8501/?patient_id= for every patient you reference, replacing the ID appropriately.
+Always include a link similar to http://localhost:8501/?patient_id= for every patient you reference even if you don't create or update, replacing the ID appropriately and don't include all the patient details again.
 """,
         )
         _patient_agent.tool(search_patients)
@@ -237,22 +239,90 @@ async def update_patient(
 
 
 async def process_patient_agent_request(
-    prompt: str, model_name: str | None = None
+    prompt: str, model_name: str | None = None, request_id: str | None = None
 ) -> dict[str, Any]:
+    """Process patient agent request and log usage metadata.
+
+    Args:
+        prompt: User's natural language prompt
+        model_name: Optional model name override
+        request_id: Optional request ID for tracking
+
+    Returns:
+        Dict with success, message, data, and usage metadata
+    """
     logger.info(f"Processing patient agent request: {prompt}")
+    start_time = time.time()
+    llm_logger = get_llm_logger()
+
+    deployment_name = model_name or os.getenv(
+        "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1-mini"
+    )
+
     try:
         agent_instance = get_patient_agent(model_name)
         result = await agent_instance.run(prompt)
+        duration_ms = int((time.time() - start_time) * 1000)
+
         logger.info(f"Patient agent result: {result.output}")
+
+        # Extract usage metadata from result
+        usage_data = result.usage()
+        prompt_tokens = usage_data.request_tokens if usage_data else None
+        completion_tokens = usage_data.response_tokens if usage_data else None
+        total_tokens = usage_data.total_tokens if usage_data else None
+
+        # Log to LLM logger
+        log_request_id = llm_logger.log_request(
+            endpoint="/agent/process",
+            model_name=deployment_name,
+            request_data={"prompt": prompt, "model_name": model_name},
+            response_data={"output": str(result.output)},
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            duration_ms=duration_ms,
+            success=True,
+            request_id=request_id,
+        )
+
         return {
             "success": True,
             "message": str(result.output),
             "data": None,
+            "usage": {
+                "request_id": log_request_id,
+                "model": deployment_name,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "duration_ms": duration_ms,
+            },
         }
     except Exception as e:
+        duration_ms = int((time.time() - start_time) * 1000)
         logger.error(f"Patient agent error: {e}")
+
+        # Log error to LLM logger
+        llm_logger.log_request(
+            endpoint="/agent/process",
+            model_name=deployment_name,
+            request_data={"prompt": prompt, "model_name": model_name},
+            response_data={},
+            duration_ms=duration_ms,
+            success=False,
+            error=str(e),
+            request_id=request_id,
+        )
+
         return {
             "success": False,
             "message": f"Patient agent failed to process request: {e!s}",
             "data": None,
+            "usage": {
+                "request_id": request_id,
+                "model": deployment_name,
+                "duration_ms": duration_ms,
+                "error": str(e),
+            },
         }

@@ -26,9 +26,15 @@ def fetch_patient(patient_id: int) -> dict | None:
 # Render helpers
 # ---------------------------
 def render_readonly_patient(patient: dict, patient_id: int) -> None:
+    full_name = (
+        f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip()
+    )
+    st.markdown(
+        f"<h2 style='text-align: center;'>{full_name} &ndash; Patient Details</h2>",
+        unsafe_allow_html=True,
+    )
     patient_info_html = f"""
     <div style="font-size:1.1em;line-height:1.7;padding:1em 0;">
-        <b>Name:</b> {patient.get("first_name", "")} {patient.get("last_name", "")}<br>
         <b>Date of Birth:</b> {patient.get("date_of_birth", "")}<br>
         <b>Gender:</b> {patient.get("gender", "")}<br>
         <b>Phone:</b> {patient.get("phone", "")}<br>

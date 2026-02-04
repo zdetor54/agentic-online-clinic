@@ -1,5 +1,7 @@
 """API routes for agentic patient management."""
 
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel
@@ -20,6 +22,7 @@ class AgentResponse(BaseModel):
     success: bool
     message: str
     data: dict | list | None = None
+    usage: dict | None = None  # LLM usage metadata
 
 
 @agent_router.post("/process", summary="Process natural language request")
@@ -31,7 +34,7 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
         request: AgentRequest containing the user's prompt
 
     Returns:
-        AgentResponse with the agent's result
+        AgentResponse with the agent's result and usage metadata
 
     Raises:
         HTTPException: 400 if prompt is empty, 500 if processing fails
@@ -42,18 +45,22 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
             detail="Prompt cannot be empty",
         )
 
-    logger.info(f"Received agent request: {request.prompt[:100]}...")
+    # Generate request ID for tracking
+    request_id = str(uuid4())
+    logger.info(f"[{request_id}] Received agent request: {request.prompt[:100]}...")
 
     try:
         from src.llm.patient_agent import process_patient_agent_request
 
-        result = await process_patient_agent_request(request.prompt, request.model_name)
+        result = await process_patient_agent_request(
+            request.prompt, request.model_name, request_id=request_id
+        )
         if (
             not isinstance(result, dict)
             or "success" not in result
             or "message" not in result
         ):
-            logger.error(f"Agent returned invalid response: {result}")
+            logger.error(f"[{request_id}] Agent returned invalid response: {result}")
             raise HTTPException(
                 status_code=500, detail="Agent did not return a valid response"
             )
@@ -61,10 +68,11 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
             success=result["success"],
             message=result["message"],
             data=result.get("data"),
+            usage=result.get("usage"),
         )
 
     except Exception as e:
-        logger.error(f"Agent endpoint error: {e}")
+        logger.error(f"[{request_id}] Agent endpoint error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process request: {e!s}",

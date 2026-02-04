@@ -157,18 +157,20 @@ elif create_mode == "1":
 elif agent_mode == "1":
     # ============= AGENT MODE PAGE =============
     st.markdown(
-        "<h2 style='text-align: center;'>🤖 Agentic Assistant</h2>",
+        "<h2 style='text-align: center;'>Agentic Assistant</h2>",
         unsafe_allow_html=True,
     )
-    st.info(
-        "💡 Try: 'Show me patient John Doe' or 'Create a new patient named Jane Smith born on 1990-05-15'"
-    )
+    # st.info(
+    #     "💡 Try: 'Show me patient John Doe' or 'Create a new patient named Jane Smith born on 1990-05-15'"
+    # )
 
     col_prompt, col_model = st.columns([3, 1])
+
+    model_choice = None  # Placeholder if no model selection is needed
     with col_model:
         model_choice = st.selectbox(
             "Model",
-            ["gpt-4.1-mini", "gpt-4", "gpt-3.5-turbo"],
+            ["gpt-5-nano", "gpt-4.1-mini", "gpt-4", "gpt-3.5-turbo"],
             help="Select Azure OpenAI deployment",
         )
 
