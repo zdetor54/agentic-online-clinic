@@ -10,6 +10,7 @@ general:
   name: 'Agentic Online Clinic'
   logo_type: 'colour' # or white
   random_state: 42
+  repo_name: 'agentic-online-clinic'
 
 paths:
   data: 'data'

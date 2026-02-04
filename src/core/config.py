@@ -21,6 +21,7 @@ class GeneralConfig:
     """Contains general configuration for the project."""
 
     name: str
+    repo_name: str
     logo_type: Literal["colour", "white"] = "colour"
     random_state: int = 42
 

@@ -8,6 +8,8 @@ from uuid import uuid4
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from src.core.config import Config
+
 
 class LLMLogEntry(BaseModel):
     """Structured log entry for LLM API calls."""
@@ -25,6 +27,10 @@ class LLMLogEntry(BaseModel):
     duration_ms: int | None = None
     success: bool = True
     error: str | None = None
+
+
+# Load config once for logger usage
+CONFIG = Config.from_yaml("configs/config.yaml")
 
 
 class LLMLogger:
@@ -131,6 +137,9 @@ class LLMLogger:
             model_name, prompt_tokens, completion_tokens
         )
 
+        # Add project name from config
+        project_name = CONFIG.general.repo_name
+
         log_entry = LLMLogEntry(
             request_id=request_id or str(uuid4()),
             endpoint=endpoint,
@@ -146,6 +155,10 @@ class LLMLogger:
             error=error,
         )
 
+        # Convert to dict and add project_name
+        entry_dict = log_entry.model_dump()
+        entry_dict["project_name"] = project_name
+
         # Read existing log (list of entries)
         if self.log_file.exists():
             try:
@@ -159,7 +172,7 @@ class LLMLogger:
         else:
             log_data = []
 
-        log_data.append(log_entry.model_dump())
+        log_data.append(entry_dict)
 
         # Write back as pretty JSON
         with self.log_file.open("w", encoding="utf-8") as f:
@@ -167,7 +180,7 @@ class LLMLogger:
 
         logger.debug(
             f"Logged LLM request {log_entry.request_id}: "
-            f"model={model_name}, tokens={total_tokens}, cost=${estimated_cost_usd} USD"
+            f"model={model_name}, tokens={total_tokens}, cost=${estimated_cost_usd} USD, project={project_name}"
         )
 
         return log_entry.request_id
@@ -226,38 +239,47 @@ class LLMLogger:
         self,
         filter_model: str | None = None,
     ) -> dict[str, dict[str, dict[str, float]]]:
-        """Get cost breakdown by date, hour, and model.
+        """Get cost breakdown by date, hour, and model, grouping by project_name if present, else 'Other'.
 
         Args:
             filter_model: Filter by model name
 
         Returns:
-            Nested dict: {date: {hour: {model: total_cost}}}
+            Nested dict: {project_name: {date: {hour: {model: total_cost}}}}
         """
         from collections import defaultdict
         from datetime import datetime
 
         entries = self.get_logs(filter_model=filter_model)
-        breakdown: dict[str, dict[str, dict[str, float]]] = defaultdict(
+        # Outer: project_name -> date -> hour -> model -> cost
+        breakdown: dict[str, dict[str, dict[str, dict[str, float]]]] = defaultdict(
             lambda: defaultdict(lambda: defaultdict(float))
         )
         for entry in entries:
             ts = entry.get("timestamp")
-            model = entry.get("model_name", "unknown")
+            model = entry.get("model_name") or "other"
             cost = float(entry.get("estimated_cost_usd", 0) or 0)
+            # Use project_name from log entry if present, else 'other'
+            project_name = entry.get("project_name") or "other-not-specified"
             if not ts or cost == 0:
                 continue
             try:
                 dt = datetime.fromisoformat(ts)
                 date_str = dt.date().isoformat()
-                hour_str = f"{dt.hour:02d}"
             except Exception as exc:
                 import logging
 
                 logging.warning(f"Failed to parse timestamp '{ts}': {exc}")
                 continue
-            breakdown[date_str][hour_str][model] += cost
-        return breakdown
+            breakdown[project_name][date_str][model] += cost
+
+        # Convert all nested defaultdicts to dicts for serialization
+        def recursive_to_dict(d: dict | defaultdict) -> dict:
+            if isinstance(d, defaultdict):
+                return {k: recursive_to_dict(v) for k, v in d.items()}
+            return d
+
+        return {k: recursive_to_dict(v) for k, v in breakdown.items()}
 
 
 # Global logger instance
