@@ -228,18 +228,9 @@ elif agent_mode == "1":
                             unsafe_allow_html=True,
                         )
 
-        # Chat input positioned right after conversation container
-        with st.form(key="chat_form", clear_on_submit=True):
-            user_message = st.text_input(
-                "Message:",
-                placeholder="Ask a question or make a request...",
-                label_visibility="collapsed",
-            )
-            send_button = st.form_submit_button(
-                "Send ➤", use_container_width=True, type="primary"
-            )
-
-        if send_button and user_message:
+        # Chat input positioned right after conversation container (using st.chat_input)
+        user_message = st.chat_input("Message: (Ask a question or make a request...)")
+        if user_message:
             if user_message.strip():
                 with st.spinner("🔄 Processing..."):
                     try:
