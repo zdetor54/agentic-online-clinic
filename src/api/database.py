@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from src.api.appointments.models import APPOINTMENTS_TABLE_SCHEMA
 from src.api.patients.models import PATIENTS_TABLE_SCHEMA
 from src.core.config import Config
 
@@ -24,6 +25,7 @@ def initialize_database() -> None:
     cursor = conn.cursor()
 
     cursor.execute(PATIENTS_TABLE_SCHEMA)
+    cursor.execute(APPOINTMENTS_TABLE_SCHEMA)
 
     conn.commit()
     conn.close()
