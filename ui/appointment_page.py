@@ -56,7 +56,7 @@ def render_readonly_appointment(appointment: dict, appointment_id: int) -> None:
     patient_link = f"<a href='?page=patient&patient_id={patient_id}'>{patient_name}</a>"
     appointment_info_html = f"""
     <div style="font-size:1.1em;line-height:1.7;padding:1em 0;">
-        <b>Patient:</b> {patient_link} (ID: {patient_id})<br>
+        <b>Patient:</b> {patient_link}<br>
         <b>Date:</b> {appointment.get("appointment_date", "")}<br>
         <b>Start Time:</b> {appointment.get("appointment_start_time", "N/A")}<br>
         <b>End Time:</b> {appointment.get("appointment_end_time", "N/A")}<br>

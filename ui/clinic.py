@@ -373,11 +373,14 @@ else:
     if st.session_state.search_results:
         st.markdown("### Search Results")
         for patient in st.session_state.search_results:
-            label = f"{patient['first_name']} {patient['last_name']}"
-            url = f"?patient_id={patient['id']}"
-            st.markdown(
-                f'<a href="{url}">{label} - id:{patient["id"]}</a>',
-                unsafe_allow_html=True,
+            patient_name = (
+                f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip()
+                if patient
+                else "Unknown"
             )
+
+            # Build hyperlink to patient page
+            patient_link = f"<a href='?page=patient&patient_id={patient.get('id')}'>{patient_name}</a>"
+            st.markdown(f"{patient_link}", unsafe_allow_html=True)
     elif search_btn:
         st.info("No matching patients found.")
