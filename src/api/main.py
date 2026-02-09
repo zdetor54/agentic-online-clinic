@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from .agent_routes import agent_router
+from .appointments.routes import appointment_router
 from .patients.routes import patient_router
 
 # Load environment variables from .env file
@@ -20,6 +21,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(patient_router)
+app.include_router(appointment_router)
 app.include_router(agent_router)
 
 
