@@ -239,7 +239,10 @@ async def update_patient(
 
 
 async def process_patient_agent_request(
-    prompt: str, model_name: str | None = None, request_id: str | None = None
+    prompt: str,
+    model_name: str | None = None,
+    request_id: str | None = None,
+    message_history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Process patient agent request and log usage metadata.
 
@@ -247,9 +250,11 @@ async def process_patient_agent_request(
         prompt: User's natural language prompt
         model_name: Optional model name override
         request_id: Optional request ID for tracking
+        message_history: Optional conversation history for multi-turn chat
+                        Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
 
     Returns:
-        Dict with success, message, data, and usage metadata
+        Dict with success, message, data, usage metadata, and updated message_history
     """
     logger.info(f"Processing patient agent request: {prompt}")
     start_time = time.time()
@@ -261,7 +266,29 @@ async def process_patient_agent_request(
 
     try:
         agent_instance = get_patient_agent(model_name)
-        result = await agent_instance.run(prompt)
+
+        # Convert message_history to PydanticAI format if provided
+        pydantic_history = None
+        if message_history:
+            from pydantic_ai.messages import (
+                ModelRequest,
+                ModelResponse,
+                TextPart,
+                UserPromptPart,
+            )
+
+            pydantic_history = []
+            for msg in message_history:
+                if msg["role"] == "user":
+                    pydantic_history.append(
+                        ModelRequest(parts=[UserPromptPart(msg["content"])])
+                    )
+                elif msg["role"] == "assistant":
+                    pydantic_history.append(
+                        ModelResponse(parts=[TextPart(content=msg["content"])])
+                    )
+
+        result = await agent_instance.run(prompt, message_history=pydantic_history)
         duration_ms = int((time.time() - start_time) * 1000)
 
         logger.info(f"Patient agent result: {result.output}")
@@ -286,6 +313,11 @@ async def process_patient_agent_request(
             request_id=request_id,
         )
 
+        # Build updated message history
+        updated_history = message_history.copy() if message_history else []
+        updated_history.append({"role": "user", "content": prompt})
+        updated_history.append({"role": "assistant", "content": str(result.output)})
+
         return {
             "success": True,
             "message": str(result.output),
@@ -298,6 +330,7 @@ async def process_patient_agent_request(
                 "total_tokens": total_tokens,
                 "duration_ms": duration_ms,
             },
+            "message_history": updated_history,
         }
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)

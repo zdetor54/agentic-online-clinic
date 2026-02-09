@@ -40,6 +40,10 @@ if "search_results" not in st.session_state:
     st.session_state.search_results = []
 if "agent_response" not in st.session_state:
     st.session_state.agent_response = None
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "chat_mode" not in st.session_state:
+    st.session_state.chat_mode = False
 
 # --- Top Navigation ---
 col_nav1, col_nav2 = st.columns(2)
@@ -160,13 +164,29 @@ elif agent_mode == "1":
         "<h2 style='text-align: center;'>Agentic Assistant</h2>",
         unsafe_allow_html=True,
     )
-    # st.info(
-    #     "💡 Try: 'Show me patient John Doe' or 'Create a new patient named Jane Smith born on 1990-05-15'"
-    # )
 
-    col_prompt, col_model = st.columns([3, 1])
+    # Mode selector
+    col_toggle, col_clear = st.columns([3, 1])
+    with col_toggle:
+        chat_mode = st.toggle(
+            "💬 Chat Mode (Conversation Memory)",
+            value=st.session_state.chat_mode,
+            help="Enable to maintain conversation context across multiple messages",
+        )
+        st.session_state.chat_mode = chat_mode
 
-    model_choice = None  # Placeholder if no model selection is needed
+    with col_clear:
+        if (
+            chat_mode
+            and st.session_state.chat_history
+            and st.button("🗑️ Clear Chat", use_container_width=True)
+        ):
+            st.session_state.chat_history = []
+            st.session_state.agent_response = None
+            st.rerun()
+
+    # Model selection
+    col_model = st.columns([1])[0]
     with col_model:
         model_choice = st.selectbox(
             "Model",
@@ -174,47 +194,125 @@ elif agent_mode == "1":
             help="Select Azure OpenAI deployment",
         )
 
-    user_prompt = st.text_area(
-        "Enter your request in natural language:",
-        height=100,
-        placeholder="e.g., Find patient with phone 555-1234\ne.g., Create patient Sarah Johnson, DOB 1985-03-20, Female",
-    )
+    st.markdown("---")
 
-    if st.button("Submit", use_container_width=True, type="primary"):
-        if user_prompt.strip():
-            with st.spinner("🔄 Agent is processing your request..."):
-                try:
-                    response = requests.post(
-                        f"{API_BASE_URL}/agent/process",
-                        json={"prompt": user_prompt, "model_name": model_choice},
-                        timeout=30,
-                    )
-                    if response.status_code == 200:
-                        result = response.json()
-                        st.session_state.agent_response = result
+    if chat_mode:
+        # ============= CHAT MODE =============
+        # Display conversation history
+        if st.session_state.chat_history:
+            st.markdown("### 💬 Conversation")
+            chat_container = st.container(height=400)
+            with chat_container:
+                for msg in st.session_state.chat_history:
+                    if msg["role"] == "user":
+                        st.markdown(
+                            f"<div style='text-align: right; padding: 8px; margin: 5px 0; background-color: #e3f2fd; border-radius: 10px;'>"
+                            f"<strong>You:</strong> {msg['content']}</div>",
+                            unsafe_allow_html=True,
+                        )
                     else:
-                        st.error(f"❌ Agent failed: {response.text}")
-                        st.session_state.agent_response = None
-                except RequestsConnectionError:
-                    st.error(
-                        "❌ Cannot connect to API server. Ensure FastAPI is running."
-                    )
-                    logger.error("Failed to connect to API server")
-                except Timeout:
-                    st.error("❌ Request timed out. Try again.")
-                    logger.error("Agent request timed out")
-                except Exception as e:
-                    st.error(f"❌ Error: {e!s}")
-                    logger.exception("Agent request error")
-        else:
-            st.warning("Please enter a prompt.")
+                        st.markdown(
+                            f"<div style='padding: 8px; margin: 5px 0; background-color: #f5f5f5; border-radius: 10px;'>"
+                            f"<strong>🤖 Assistant:</strong> {msg['content']}</div>",
+                            unsafe_allow_html=True,
+                        )
 
-    if st.session_state.agent_response:
-        st.markdown("### 📝 Agent Response")
-        response = st.session_state.agent_response
-        st.success(response.get("message", "Request processed successfully."))
-        if response.get("data"):
-            st.json(response["data"])
+        # Chat input at bottom
+        user_message = st.text_input(
+            "Message:",
+            placeholder="Ask a question or make a request...",
+            key="chat_input",
+        )
+
+        if st.button("Send", use_container_width=True, type="primary"):
+            if user_message.strip():
+                with st.spinner("🔄 Processing..."):
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/agent/process",
+                            json={
+                                "prompt": user_message,
+                                "model_name": model_choice,
+                                "message_history": st.session_state.chat_history,
+                            },
+                            timeout=30,
+                        )
+                        if response.status_code == 200:
+                            result = response.json()
+                            # Update chat history from response
+                            if result.get("message_history"):
+                                st.session_state.chat_history = result[
+                                    "message_history"
+                                ]
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Agent failed: {response.text}")
+                    except RequestsConnectionError:
+                        st.error(
+                            "❌ Cannot connect to API server. Ensure FastAPI is running."
+                        )
+                        logger.error("Failed to connect to API server")
+                    except Timeout:
+                        st.error("❌ Request timed out. Try again.")
+                        logger.error("Agent request timed out")
+                    except Exception as e:
+                        st.error(f"❌ Error: {e!s}")
+                        logger.exception("Agent request error")
+            else:
+                st.warning("Please enter a message.")
+
+        # Show token usage stats if available
+        if st.session_state.chat_history:
+            total_messages = len(st.session_state.chat_history)
+            st.caption(
+                f"💬 {total_messages} messages in conversation | "
+                f"Context: ~{total_messages * 100} tokens (approximate)"
+            )
+
+    else:
+        # ============= SINGLE-SHOT MODE (Original) =============
+
+        user_prompt = st.text_area(
+            "Enter your request, signle shot, in natural language:",
+            height=100,
+            placeholder="e.g., Find patient with phone 555-1234\ne.g., Create patient Sarah Johnson, DOB 1985-03-20, Female",
+        )
+
+        if st.button("Submit", use_container_width=True, type="primary"):
+            if user_prompt.strip():
+                with st.spinner("🔄 Agent is processing your request..."):
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/agent/process",
+                            json={"prompt": user_prompt, "model_name": model_choice},
+                            timeout=30,
+                        )
+                        if response.status_code == 200:
+                            result = response.json()
+                            st.session_state.agent_response = result
+                        else:
+                            st.error(f"❌ Agent failed: {response.text}")
+                            st.session_state.agent_response = None
+                    except RequestsConnectionError:
+                        st.error(
+                            "❌ Cannot connect to API server. Ensure FastAPI is running."
+                        )
+                        logger.error("Failed to connect to API server")
+                    except Timeout:
+                        st.error("❌ Request timed out. Try again.")
+                        logger.error("Agent request timed out")
+                    except Exception as e:
+                        st.error(f"❌ Error: {e!s}")
+                        logger.exception("Agent request error")
+            else:
+                st.warning("Please enter a prompt.")
+
+        if st.session_state.agent_response:
+            st.markdown("### 📝 Agent Response")
+            response = st.session_state.agent_response
+            st.success(response.get("message", "Request processed successfully."))
+            if response.get("data"):
+                st.json(response["data"])
 
 else:
     # ============= SEARCH PAGE (default) =============

@@ -14,6 +14,9 @@ class AgentRequest(BaseModel):
 
     prompt: str
     model_name: str | None = None
+    message_history: list[dict[str, str]] | None = (
+        None  # Chat history for multi-turn conversations
+    )
 
 
 class AgentResponse(BaseModel):
@@ -23,6 +26,7 @@ class AgentResponse(BaseModel):
     message: str
     data: dict | list | None = None
     usage: dict | None = None  # LLM usage metadata
+    message_history: list[dict[str, str]] | None = None  # Updated conversation history
 
 
 @agent_router.post("/process", summary="Process natural language request")
@@ -53,7 +57,10 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
         from src.llm.patient_agent import process_patient_agent_request
 
         result = await process_patient_agent_request(
-            request.prompt, request.model_name, request_id=request_id
+            request.prompt,
+            request.model_name,
+            request_id=request_id,
+            message_history=request.message_history,
         )
         if (
             not isinstance(result, dict)
@@ -69,6 +76,7 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
             message=result["message"],
             data=result.get("data"),
             usage=result.get("usage"),
+            message_history=result.get("message_history"),
         )
 
     except Exception as e:
