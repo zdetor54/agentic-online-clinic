@@ -20,6 +20,17 @@ st.set_page_config(page_title="Patient Management")
 ui_service = StreamlitUIService()
 ui_service.load_css()
 logo_bytes = ui_service.get_logo("colour")
+st.markdown(
+    """
+    <style>
+    .stButton > button[data-testid="baseButton-primary"] {
+        background-color: rgb(227, 25, 55) !important;
+        border-color: rgb(227, 25, 55) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.sidebar.image(logo_bytes, width=200)
 st.sidebar.markdown("# Patient Management Application")
 st.sidebar.write("""
@@ -217,14 +228,18 @@ elif agent_mode == "1":
                             unsafe_allow_html=True,
                         )
 
-        # Chat input at bottom
-        user_message = st.text_input(
-            "Message:",
-            placeholder="Ask a question or make a request...",
-            key="chat_input",
-        )
+        # Chat input positioned right after conversation container
+        with st.form(key="chat_form", clear_on_submit=True):
+            user_message = st.text_input(
+                "Message:",
+                placeholder="Ask a question or make a request...",
+                label_visibility="collapsed",
+            )
+            send_button = st.form_submit_button(
+                "Send ➤", use_container_width=True, type="primary"
+            )
 
-        if st.button("Send", use_container_width=True, type="primary"):
+        if send_button and user_message:
             if user_message.strip():
                 with st.spinner("🔄 Processing..."):
                     try:
