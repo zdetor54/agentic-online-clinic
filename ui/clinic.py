@@ -8,6 +8,7 @@ from loguru import logger
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout
 
+from ui.appointment_page import show_appointment_page
 from ui.patient_page import show_patient_page
 
 # API Configuration
@@ -77,10 +78,25 @@ st.markdown("---")
 
 # --- ROUTING: Check query params and render appropriate page ---
 
+page_type = st.query_params.get("page")
 patient_id = st.query_params.get("patient_id")
+appointment_id = st.query_params.get("appointment_id")
 
 if isinstance(patient_id, list):
     patient_id = patient_id[0]
+if isinstance(appointment_id, list):
+    appointment_id = appointment_id[0]
+
+# Handle appointment page routing - check for appointment_id first
+if appointment_id or page_type == "appointment":
+    editable = st.query_params.get("edit") == "1"
+    if appointment_id:
+        show_appointment_page(appointment_id=int(appointment_id), editable=editable)
+    elif patient_id:
+        show_appointment_page(patient_id=int(patient_id))
+    else:
+        st.error("Invalid appointment page parameters")
+    st.stop()
 
 # persist patient id across reruns
 if patient_id:

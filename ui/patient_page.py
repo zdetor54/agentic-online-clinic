@@ -5,6 +5,7 @@ import streamlit as st
 
 API_BASE_URL = st.session_state.get("API_BASE_URL", "http://localhost:8000")
 PATIENTS_ENDPOINT = f"{API_BASE_URL}/patients/"
+APPOINTMENTS_ENDPOINT = f"{API_BASE_URL}/appointments/"
 HTTP_STATUS_CREATED = 201
 
 
@@ -20,6 +21,20 @@ def fetch_patient(patient_id: int) -> dict | None:
     except Exception as exc:
         st.error(f"Error loading patient: {exc!s}")
     return None
+
+
+def fetch_patient_appointments(patient_id: int) -> list[dict]:
+    try:
+        resp = requests.get(
+            APPOINTMENTS_ENDPOINT,
+            params={"patient_id": patient_id},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as exc:
+        st.error(f"Error loading appointments: {exc!s}")
+    return []
 
 
 # ---------------------------
@@ -44,12 +59,47 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
     """
     st.markdown(patient_info_html, unsafe_allow_html=True)
 
-    if st.button("Edit Patient", use_container_width=True):
-        # use experimental_set_query_params to avoid brittle mutation behavior
-        st.query_params.clear()
-        st.query_params["patient_id"] = str(patient_id)
-        st.query_params["edit"] = "1"
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Edit Patient", use_container_width=True):
+            st.query_params.clear()
+            st.query_params["patient_id"] = str(patient_id)
+            st.query_params["edit"] = "1"
+            st.rerun()
+    with col2:
+        if st.button("Create Appointment", use_container_width=True, type="primary"):
+            st.query_params.clear()
+            st.query_params["page"] = "appointment"
+            st.query_params["patient_id"] = str(patient_id)
+            st.rerun()
+
+    # Display appointments list
+    st.markdown("---")
+    st.markdown("### Appointments")
+    appointments = fetch_patient_appointments(patient_id)
+
+    if not appointments:
+        st.info("No appointments found for this patient.")
+    else:
+        for appt in appointments:
+            appt_date = appt.get("appointment_date", "N/A")
+            appt_time = appt.get("appointment_start_time", "N/A")
+            appt_reason = appt.get("appointment_reason", "No reason provided")
+            appt_id = appt.get("id")
+
+            col_appt1, col_appt2 = st.columns([3, 1])
+            with col_appt1:
+                st.markdown(f"**{appt_date}** at {appt_time}")
+                st.markdown(f"*{appt_reason}*")
+            with col_appt2:
+                if st.button(
+                    "View", key=f"view_appt_{appt_id}", use_container_width=True
+                ):
+                    st.query_params.clear()
+                    st.query_params["page"] = "appointment"
+                    st.query_params["appointment_id"] = str(appt_id)
+                    st.rerun()
+            st.markdown("---")
 
 
 def render_edit_patient(patient: dict, patient_id: int) -> None:
