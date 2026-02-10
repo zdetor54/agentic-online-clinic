@@ -57,23 +57,18 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
             api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
         )
         model = OpenAIChatModel(deployment_name, provider=azure_provider)
+        # Load system prompt from YAML file
+        from pathlib import Path
+
+        import yaml
+
+        prompt_path = Path(__file__).parent / "agent_system_prompts.yaml"
+        with prompt_path.open(encoding="utf-8") as f:
+            prompts = yaml.safe_load(f)
+        system_prompt = prompts.get("patient_agent", "")
         _patient_agent = Agent(
             model,
-            system_prompt="""You are a helpful medical office assistant that helps manage patient records.
-You can:
-1. Search for patients by name (first, last, or both) or phone number
-2. View a specific patient's details by ID
-3. Create new patient records
-4. Update existing patient records
-IMPORTANT SEARCH RULES:
-- When the user provides both first and last name (e.g., \"Jane Smith\"), search using BOTH names if possible.
-- If only one name is provided, search using that name (it may match either first or last name).
-- The search API matches first name OR last name separately, but if both are provided, search for patients matching BOTH names.
-- Example: For \"Jane Smith\", call search_patients with name=\"Jane Smith\" (or use both fields if supported).
-Always use the patient ID from search results when you need to reference a specific patient.
-Be clear and helpful in your responses.
-Always include a link similar to http://localhost:8501/?patient_id= for every patient you reference even if you don't create or update, replacing the ID appropriately and don't include all the patient details again.
-""",
+            system_prompt=system_prompt,
         )
         _patient_agent.tool(search_patients)
         _patient_agent.tool(get_patient_by_id)
