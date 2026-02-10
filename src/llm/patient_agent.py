@@ -243,6 +243,7 @@ async def process_patient_agent_request(
     model_name: str | None = None,
     request_id: str | None = None,
     message_history: list[dict[str, str]] | None = None,
+    cumulative_usage: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Process patient agent request and log usage metadata.
 
@@ -252,9 +253,11 @@ async def process_patient_agent_request(
         request_id: Optional request ID for tracking
         message_history: Optional conversation history for multi-turn chat
                         Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+        cumulative_usage: Optional cumulative token usage from previous turns
+                         Format: {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
 
     Returns:
-        Dict with success, message, data, usage metadata, and updated message_history
+        Dict with success, message, data, usage metadata (current + cumulative), and updated message_history
     """
     logger.info(f"Processing patient agent request: {prompt}")
     start_time = time.time()
@@ -293,21 +296,50 @@ async def process_patient_agent_request(
 
         logger.info(f"Patient agent result: {result.output}")
 
-        # Extract usage metadata from result
+        # Extract usage metadata from current turn
         usage_data = result.usage()
-        prompt_tokens = usage_data.request_tokens if usage_data else None
-        completion_tokens = usage_data.response_tokens if usage_data else None
-        total_tokens = usage_data.total_tokens if usage_data else None
+        current_prompt_tokens = usage_data.request_tokens if usage_data else 0
+        current_completion_tokens = usage_data.response_tokens if usage_data else 0
+        current_total_tokens = usage_data.total_tokens if usage_data else 0
 
-        # Log to LLM logger
+        # Calculate cumulative usage across conversation
+        prev_cumulative = cumulative_usage or {}
+        cumulative_prompt_tokens = (
+            prev_cumulative.get("prompt_tokens", 0) + current_prompt_tokens
+        )
+        cumulative_completion_tokens = (
+            prev_cumulative.get("completion_tokens", 0) + current_completion_tokens
+        )
+        cumulative_total_tokens = (
+            prev_cumulative.get("total_tokens", 0) + current_total_tokens
+        )
+
+        logger.info(
+            f"Token usage - Current turn: {current_total_tokens} "
+            f"(prompt: {current_prompt_tokens}, completion: {current_completion_tokens})"
+        )
+        logger.info(
+            f"Token usage - Cumulative: {cumulative_total_tokens} "
+            f"(prompt: {cumulative_prompt_tokens}, completion: {cumulative_completion_tokens})"
+        )
+
+        # Log cumulative usage to LLM logger
+        request_data = {
+            "prompt": prompt,
+            "model_name": model_name,
+            "turn": len(message_history) // 2 + 1 if message_history else 1,
+        }
+        if message_history:
+            request_data["message_history"] = message_history
+
         log_request_id = llm_logger.log_request(
             endpoint="/agent/process",
             model_name=deployment_name,
-            request_data={"prompt": prompt, "model_name": model_name},
+            request_data=request_data,
             response_data={"output": str(result.output)},
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
+            prompt_tokens=cumulative_prompt_tokens,
+            completion_tokens=cumulative_completion_tokens,
+            total_tokens=cumulative_total_tokens,
             duration_ms=duration_ms,
             success=True,
             request_id=request_id,
@@ -325,9 +357,16 @@ async def process_patient_agent_request(
             "usage": {
                 "request_id": log_request_id,
                 "model": deployment_name,
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "total_tokens": total_tokens,
+                "current_turn": {
+                    "prompt_tokens": current_prompt_tokens,
+                    "completion_tokens": current_completion_tokens,
+                    "total_tokens": current_total_tokens,
+                },
+                "cumulative": {
+                    "prompt_tokens": cumulative_prompt_tokens,
+                    "completion_tokens": cumulative_completion_tokens,
+                    "total_tokens": cumulative_total_tokens,
+                },
                 "duration_ms": duration_ms,
             },
             "message_history": updated_history,
