@@ -59,18 +59,12 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
     """
     st.markdown(patient_info_html, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col3 = st.columns(2)
     with col1:
         if st.button("Edit Patient", use_container_width=True):
             st.query_params.clear()
             st.query_params["patient_id"] = str(patient_id)
             st.query_params["edit"] = "1"
-            st.rerun()
-    with col2:
-        if st.button("Create Appointment", use_container_width=True, type="primary"):
-            st.query_params.clear()
-            st.query_params["page"] = "appointment"
-            st.query_params["patient_id"] = str(patient_id)
             st.rerun()
     with col3:
         if st.button("Delete Patient", use_container_width=True, type="secondary"):
@@ -79,6 +73,7 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
                 if resp.status_code == 204:
                     st.success("✅ Patient deleted successfully!")
                     # Redirect to main clinic page
+                    st.session_state.pop("active_patient_id", None)
                     st.query_params.clear()
                     st.rerun()
                 else:
@@ -88,7 +83,13 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
 
     # Display appointments list
     st.markdown("---")
-    st.markdown("### Appointments")
+    st.markdown("## Appointments")
+
+    if st.button("Create Appointment", use_container_width=True, type="primary"):
+        st.query_params.clear()
+        st.query_params["page"] = "appointment"
+        st.query_params["patient_id"] = str(patient_id)
+        st.rerun()
     appointments = fetch_patient_appointments(patient_id)
 
     if not appointments:

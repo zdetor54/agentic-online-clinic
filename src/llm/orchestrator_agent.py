@@ -75,6 +75,7 @@ def get_orchestrator_agent(model_name: str | None = None) -> Agent:
 async def delegate_to_patient_agent(
     ctx: RunContext[None],  # noqa: ARG001
     prompt: str,
+    model_name: str | None = None,
 ) -> OrchestratorToolResult:
     """
     Delegate a patient-related request to the patient agent.
@@ -95,7 +96,7 @@ async def delegate_to_patient_agent(
     try:
         result = await process_patient_agent_request(
             prompt=prompt,
-            model_name=None,
+            model_name=model_name,
             message_history=None,
             request_id=None,
         )
@@ -117,6 +118,7 @@ async def delegate_to_patient_agent(
 async def delegate_to_appointment_agent(
     ctx: RunContext[None],  # noqa: ARG001
     prompt: str,
+    model_name: str | None = None,
 ) -> OrchestratorToolResult:
     """
     Delegate an appointment-related request to the appointment agent.
@@ -137,7 +139,7 @@ async def delegate_to_appointment_agent(
     try:
         result = await process_appointment_agent_request(
             prompt=prompt,
-            model_name=None,
+            model_name=model_name,
             message_history=None,
             request_id=None,
         )
@@ -187,8 +189,29 @@ async def process_orchestrator_request(
     try:
         agent = get_orchestrator_agent(model_name=model_name)
 
-        # Run the agent with conversation history
-        result = await agent.run(prompt, message_history=message_history)
+        # Convert dict-format message_history to PydanticAI format
+        # Without this, the LLM never sees prior conversation turns
+        pydantic_history = None
+        if message_history:
+            from pydantic_ai.messages import (
+                ModelRequest,
+                ModelResponse,
+                TextPart,
+                UserPromptPart,
+            )
+
+            pydantic_history = []
+            for msg in message_history:
+                if msg["role"] == "user":
+                    pydantic_history.append(
+                        ModelRequest(parts=[UserPromptPart(msg["content"])])
+                    )
+                elif msg["role"] == "assistant":
+                    pydantic_history.append(
+                        ModelResponse(parts=[TextPart(content=msg["content"])])
+                    )
+
+        result = await agent.run(prompt, message_history=pydantic_history)
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Extract token usage from result

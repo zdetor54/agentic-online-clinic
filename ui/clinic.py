@@ -257,7 +257,7 @@ elif agent_mode == "1":
                                 "model_name": model_choice,
                                 "message_history": st.session_state.chat_history,
                             },
-                            timeout=60,
+                            timeout=120,
                         )
                         if response.status_code == 200:
                             result = response.json()
@@ -307,7 +307,7 @@ elif agent_mode == "1":
                         response = requests.post(
                             f"{API_BASE_URL}/agent/process",
                             json={"prompt": user_prompt, "model_name": model_choice},
-                            timeout=60,
+                            timeout=120,
                         )
                         if response.status_code == 200:
                             result = response.json()
