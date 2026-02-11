@@ -54,13 +54,13 @@ async def process_agent_endpoint(request: AgentRequest) -> AgentResponse:
     logger.info(f"[{request_id}] Received agent request: {request.prompt[:100]}...")
 
     try:
-        from src.llm.patient_agent import process_patient_agent_request
+        from src.llm.orchestrator_agent import process_orchestrator_request
 
-        result = await process_patient_agent_request(
-            request.prompt,
-            request.model_name,
-            request_id=request_id,
+        result = await process_orchestrator_request(
+            prompt=request.prompt,
+            model_name=request.model_name,
             message_history=request.message_history,
+            request_id=request_id,
         )
         if (
             not isinstance(result, dict)
