@@ -59,7 +59,7 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
     """
     st.markdown(patient_info_html, unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Edit Patient", use_container_width=True):
             st.query_params.clear()
@@ -72,6 +72,19 @@ def render_readonly_patient(patient: dict, patient_id: int) -> None:
             st.query_params["page"] = "appointment"
             st.query_params["patient_id"] = str(patient_id)
             st.rerun()
+    with col3:
+        if st.button("Delete Patient", use_container_width=True, type="secondary"):
+            try:
+                resp = requests.delete(f"{PATIENTS_ENDPOINT}{patient_id}", timeout=5)
+                if resp.status_code == 204:
+                    st.success("✅ Patient deleted successfully!")
+                    # Redirect to main clinic page
+                    st.query_params.clear()
+                    st.rerun()
+                else:
+                    st.error(f"Failed to delete: {resp.text}")
+            except Exception as exc:
+                st.error(f"❌ Error deleting patient: {exc!s}")
 
     # Display appointments list
     st.markdown("---")

@@ -65,11 +65,31 @@ def render_readonly_appointment(appointment: dict, appointment_id: int) -> None:
     """
     st.markdown(appointment_info_html, unsafe_allow_html=True)
 
-    if st.button("Edit Appointment", use_container_width=True):
-        st.query_params.clear()
-        st.query_params["appointment_id"] = str(appointment_id)
-        st.query_params["edit"] = "1"
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Edit Appointment", use_container_width=True):
+            st.query_params.clear()
+            st.query_params["appointment_id"] = str(appointment_id)
+            st.query_params["edit"] = "1"
+            st.rerun()
+
+    with col2:
+        if st.button("Delete Appointment", use_container_width=True, type="secondary"):
+            try:
+                resp = requests.delete(
+                    f"{APPOINTMENTS_ENDPOINT}{appointment_id}", timeout=5
+                )
+                if resp.status_code == 204:
+                    st.success("✅ Appointment deleted successfully!")
+                    # Redirect to patient page
+                    st.query_params.clear()
+                    st.query_params["page"] = "patient"
+                    st.query_params["patient_id"] = str(patient_id)
+                    st.rerun()
+                else:
+                    st.error(f"Failed to delete: {resp.text}")
+            except Exception as exc:
+                st.error(f"❌ Error deleting appointment: {exc!s}")
 
 
 def render_edit_appointment(appointment: dict, appointment_id: int) -> None:
