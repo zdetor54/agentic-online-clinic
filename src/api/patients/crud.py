@@ -93,6 +93,9 @@ def update_patient(patient_id: int, patient: PatientCreate, updated_by: str) -> 
     )
     data["updated_by"] = updated_by
 
+    # Exclude created_by from updates to preserve original creator
+    data.pop("created_by", None)
+
     set_clause = ", ".join(
         [f"{k} = ?" for k in data] + ["updated_at = CURRENT_TIMESTAMP"]
     )

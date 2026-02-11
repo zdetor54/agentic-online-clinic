@@ -2,8 +2,8 @@
 
 import os
 import time
-from datetime import datetime
-from typing import Any, Literal
+from datetime import date
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel
@@ -11,46 +11,44 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.azure import AzureProvider
 
-from src.api.patients import crud
-from src.api.patients.schemas import PatientCreate
+from src.api.appointments import crud
+from src.api.appointments.schemas import AppointmentCreate
 from src.core.llm_logger import get_llm_logger
 
 
-class PatientToolResult(BaseModel):
-    """Result from patient tool operations."""
+class AppointmentToolResult(BaseModel):
+    """Result from appointment tool operations."""
 
     success: bool
     message: str
     data: list[dict[str, Any]] = []
 
 
-_patient_agent: Agent | None = None
+_appointment_agent: Agent | None = None
 
 
-def format_patient_info(patient: dict) -> str:
-    info = (
-        f"ID: {patient['id']}, Name: {patient['first_name']} {patient['last_name']}, "
-        f"DOB: {patient.get('date_of_birth', 'N/A')}, Gender: {patient.get('gender', 'N/A')}"
+def format_appointment_info(appointment: dict) -> str:
+    return (
+        f"ID: {appointment['id']}, Patient ID: {appointment['patient_id']}, "
+        f"Date: {appointment.get('appointment_date', 'N/A')}, Start Time: {appointment.get('appointment_start_time', 'N/A')}, End Time: {appointment.get('appointment_end_time', 'N/A')}, "
+        f"Reason: {appointment.get('appointment_reason', 'N/A')}"
     )
-    if patient.get("phone"):
-        info += f", Phone: {patient['phone']}"
-    return info
 
 
-def get_patient_agent(model_name: str | None = None) -> Agent:
+def get_appointment_agent(model_name: str | None = None) -> Agent:
     """
-    Get or create the PydanticAI patient agent instance.
+    Get or create the PydanticAI appointment agent instance.
     Args:
         model_name: Optional model name override
                    If None, uses AZURE_OPENAI_DEPLOYMENT_NAME from .env
     Returns:
         Configured PydanticAI Agent with Azure OpenAI
     """
-    global _patient_agent  # noqa: PLW0603
+    global _appointment_agent  # noqa: PLW0603
     deployment_name = model_name or os.getenv(
         "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-nano"
     )
-    if _patient_agent is None:
+    if _appointment_agent is None:
         azure_provider = AzureProvider(
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),
@@ -65,181 +63,169 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
         prompt_path = Path(__file__).parent / "agent_system_prompts.yaml"
         with prompt_path.open(encoding="utf-8") as f:
             prompts = yaml.safe_load(f)
-        system_prompt = prompts.get("patient_agent", "")
-        _patient_agent = Agent(
+        system_prompt = prompts.get("appointment_agent", "")
+        _appointment_agent = Agent(
             model,
             system_prompt=system_prompt,
         )
-        _patient_agent.tool(search_patients)
-        _patient_agent.tool(get_patient_by_id)
-        _patient_agent.tool(create_patient)
-        _patient_agent.tool(update_patient)
+        _appointment_agent.tool(search_appointments)
+        _appointment_agent.tool(get_appointment_by_id)
+        _appointment_agent.tool(create_appointment)
+        _appointment_agent.tool(update_appointment)
         logger.info(
-            f"Initialized PydanticAI patient agent with Azure OpenAI: {deployment_name}"
+            f"Initialized PydanticAI appointment agent with Azure OpenAI: {deployment_name}"
         )
-    return _patient_agent
+    return _appointment_agent
 
 
-async def search_patients(
+async def search_appointments(
     ctx: RunContext[None],  # noqa: ARG001
-    name: str | None = None,
-    phone: str | None = None,
-) -> PatientToolResult:
-    logger.info(f"Searching patients: name={name}, phone={phone}")
+    appointment_date: str | None = None,
+    patient_id: int | None = None,
+) -> AppointmentToolResult:
+    logger.info(
+        f"Searching appointments: date={appointment_date}, patient_id={patient_id}"
+    )
     try:
-        patients = crud.list_patients(name=name, phone=phone)
-        if patients:
-            patient_list = [format_patient_info(p.model_dump()) for p in patients]
-            return PatientToolResult(
+        appointments = crud.list_appointments(
+            appointment_date=appointment_date, patient_id=patient_id
+        )
+        if appointments:
+            appointment_list = [
+                format_appointment_info(a.model_dump()) for a in appointments
+            ]
+            return AppointmentToolResult(
                 success=True,
-                message=f"Found {len(patients)} patient(s):\n"
-                + "\n".join(patient_list),
-                data=[p.model_dump() for p in patients],
+                message=f"Found {len(appointments)} appointment(s):\n"
+                + "\n".join(appointment_list),
+                data=[a.model_dump() for a in appointments],
             )
-        return PatientToolResult(
+        return AppointmentToolResult(
             success=True,
-            message=f"No patients found with name='{name}' or phone='{phone}'",
+            message=f"No appointments found for date='{appointment_date}' or patient_id='{patient_id}'",
             data=[],
         )
     except Exception as e:
-        logger.error(f"Error searching patients: {e}")
-        return PatientToolResult(success=False, message=f"Error: {e!s}")
+        logger.error(f"Error searching appointments: {e}")
+        return AppointmentToolResult(success=False, message=f"Error: {e!s}")
 
 
-async def get_patient_by_id(
+async def get_appointment_by_id(
+    ctx: RunContext[None],  # noqa: ARG001
+    appointment_id: int,
+) -> AppointmentToolResult:
+    logger.info(f"Fetching appointment ID: {appointment_id}")
+    try:
+        appointment = crud.get_appointment_by_id(appointment_id)
+        if appointment:
+            return AppointmentToolResult(
+                success=True,
+                message=format_appointment_info(appointment.model_dump()),
+                data=[appointment.model_dump()],
+            )
+        return AppointmentToolResult(
+            success=True,
+            message=f"No appointment found with ID {appointment_id}",
+            data=[],
+        )
+    except Exception as e:
+        logger.error(f"Error fetching appointment: {e}")
+        return AppointmentToolResult(success=False, message=f"Error: {e!s}", data=[])
+
+
+async def create_appointment(
     ctx: RunContext[None],  # noqa: ARG001
     patient_id: int,
-) -> PatientToolResult:
-    logger.info(f"Fetching patient ID: {patient_id}")
+    appointment_date: str,
+    appointment_start_time: str,
+    appointment_end_time: str,
+    appointment_reason: str | None = None,
+) -> AppointmentToolResult:
+    logger.info(
+        f"Creating appointment for patient {patient_id}: {appointment_date} {appointment_start_time} - {appointment_end_time}"
+    )
     try:
-        patient = crud.get_patient_by_id(patient_id)
-        if patient:
-            return PatientToolResult(
-                success=True,
-                message=format_patient_info(patient.model_dump()),
-                data=[patient.model_dump()],
-            )
-        return PatientToolResult(
-            success=True,
-            message=f"No patient found with ID {patient_id}",
-            data=[],
-        )
-    except Exception as e:
-        logger.error(f"Error fetching patient: {e}")
-        return PatientToolResult(success=False, message=f"Error: {e!s}", data=[])
-
-
-async def create_patient(
-    ctx: RunContext[None],  # noqa: ARG001
-    first_name: str,
-    last_name: str,
-    date_of_birth: str,
-    gender: str,
-    phone: str | None = None,
-    email: str | None = None,
-    address: str | None = None,
-) -> PatientToolResult:
-    logger.info(f"Creating patient: {first_name} {last_name}")
-    try:
-        # Convert date_of_birth to date
-        dob_date = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
-        # Validate gender
-        gender_titled = gender.title()
-        if gender_titled in ("Male", "Female", "Other"):
-            gender_value: Literal["Male", "Female", "Other"] = gender_titled  # type: ignore[assignment]
-        else:
-            gender_value = "Other"
-        patient_create = PatientCreate(
-            first_name=first_name.strip(),
-            last_name=last_name.strip(),
-            date_of_birth=dob_date,
-            gender=gender_value,
-            phone=phone.strip() if phone else None,
-            email=email.strip() if email else None,
-            address=address.strip() if address else None,
+        appointment_create = AppointmentCreate(
+            patient_id=patient_id,
+            appointment_date=date.fromisoformat(appointment_date),
+            appointment_start_time=appointment_start_time,
+            appointment_end_time=appointment_end_time,
+            appointment_reason=appointment_reason,
             created_by="agent",
         )
-        patient_id = crud.create_patient(patient_create)
-        patient = crud.get_patient_by_id(patient_id)
-        if patient:
-            return PatientToolResult(
+        appointment_id = crud.create_appointment(appointment_create)
+        appointment = crud.get_appointment_by_id(appointment_id)
+        if appointment:
+            return AppointmentToolResult(
                 success=True,
-                message=f"Successfully created patient: {first_name} {last_name}",
-                data=[patient.model_dump()],
+                message=f"Successfully created appointment: {format_appointment_info(appointment.model_dump())}",
+                data=[appointment.model_dump()],
             )
-        return PatientToolResult(
+        return AppointmentToolResult(
             success=False,
-            message="Failed to create patient: Not found after creation.",
+            message="Failed to create appointment: Not found after creation.",
             data=[],
         )
     except Exception as e:
-        logger.error(f"Error creating patient: {e}")
-        return PatientToolResult(success=False, message=f"Error: {e!s}")
+        logger.error(f"Error creating appointment: {e}")
+        return AppointmentToolResult(success=False, message=f"Error: {e!s}")
 
 
-async def update_patient(
+async def update_appointment(
     ctx: RunContext[None],  # noqa: ARG001
+    appointment_id: int,
     patient_id: int,
-    first_name: str,
-    last_name: str,
-    date_of_birth: str,
-    gender: str,
-    phone: str | None = None,
-    email: str | None = None,
-    address: str | None = None,
+    appointment_date: str,
+    appointment_start_time: str,
+    appointment_end_time: str,
+    appointment_reason: str | None = None,
     updated_by: str = "agent",
-) -> PatientToolResult:
-    logger.info(f"Updating patient ID {patient_id}: {first_name} {last_name}")
+) -> AppointmentToolResult:
+    logger.info(
+        f"Updating appointment ID {appointment_id} for patient {patient_id}: {appointment_date} {appointment_start_time} - {appointment_end_time}"
+    )
     try:
-        # Convert date_of_birth to date
-        dob_date = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
-        # Validate gender
-        gender_titled = gender.title()
-        if gender_titled in ("Male", "Female", "Other"):
-            gender_value: Literal["Male", "Female", "Other"] = gender_titled  # type: ignore[assignment]
-        else:
-            gender_value = "Other"
-        patient_update = PatientCreate(
-            first_name=first_name.strip(),
-            last_name=last_name.strip(),
-            date_of_birth=dob_date,
-            gender=gender_value,
-            phone=phone.strip() if phone else None,
-            email=email.strip() if email else None,
-            address=address.strip() if address else None,
+        appointment_update = AppointmentCreate(
+            patient_id=patient_id,
+            appointment_date=date.fromisoformat(appointment_date),
+            appointment_start_time=appointment_start_time,
+            appointment_end_time=appointment_end_time,
+            appointment_reason=appointment_reason,
         )
-        success = crud.update_patient(patient_id, patient_update, updated_by)
+        success = crud.update_appointment(
+            appointment_id, appointment_update, updated_by
+        )
         if success:
-            patient = crud.get_patient_by_id(patient_id)
-            if patient:
-                return PatientToolResult(
+            appointment = crud.get_appointment_by_id(appointment_id)
+            if appointment:
+                return AppointmentToolResult(
                     success=True,
-                    message=f"Successfully updated patient: {format_patient_info(patient.model_dump())}",
-                    data=[patient.model_dump()],
+                    message=f"Successfully updated appointment: {format_appointment_info(appointment.model_dump())}",
+                    data=[appointment.model_dump()],
                 )
-            return PatientToolResult(
+            return AppointmentToolResult(
                 success=False,
-                message="Patient updated but could not be retrieved.",
+                message="Appointment updated but could not be retrieved.",
                 data=[],
             )
-        return PatientToolResult(
+        return AppointmentToolResult(
             success=False,
-            message="Failed to update patient.",
+            message="Failed to update appointment.",
             data=[],
         )
     except Exception as e:
-        logger.error(f"Error updating patient: {e}")
-        return PatientToolResult(success=False, message=f"Error: {e!s}", data=[])
+        logger.error(f"Error updating appointment: {e}")
+        return AppointmentToolResult(success=False, message=f"Error: {e!s}", data=[])
 
 
-async def process_patient_agent_request(
+async def process_appointment_agent_request(
     prompt: str,
     model_name: str | None = None,
     request_id: str | None = None,
     message_history: list[dict[str, str]] | None = None,
     cumulative_usage: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    """Process patient agent request and log usage metadata.
+    """Process appointment agent request and log usage metadata.
 
     Args:
         prompt: User's natural language prompt
@@ -253,7 +239,7 @@ async def process_patient_agent_request(
     Returns:
         Dict with success, message, data, usage metadata (current + cumulative), and updated message_history
     """
-    logger.info(f"Processing patient agent request: {prompt}")
+    logger.info(f"Processing appointment agent request: {prompt}")
     start_time = time.time()
     llm_logger = get_llm_logger()
 
@@ -262,7 +248,7 @@ async def process_patient_agent_request(
     )
 
     try:
-        agent_instance = get_patient_agent(model_name)
+        agent_instance = get_appointment_agent(model_name)
 
         # Convert message_history to PydanticAI format if provided
         pydantic_history = None
@@ -288,7 +274,7 @@ async def process_patient_agent_request(
         result = await agent_instance.run(prompt, message_history=pydantic_history)
         duration_ms = int((time.time() - start_time) * 1000)
 
-        logger.info(f"Patient agent result: {result.output}")
+        logger.info(f"Appointment agent result: {result.output}")
 
         # Extract usage metadata from current turn
         usage_data = result.usage()
