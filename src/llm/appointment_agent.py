@@ -11,9 +11,9 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.azure import AzureProvider
 
-from src.api.appointments import crud
 from src.api.appointments.schemas import AppointmentCreate
 from src.core.llm_logger import get_llm_logger
+from src.llm.deps import AppointmentDeps, get_default_appointment_deps
 
 
 class AppointmentToolResult(BaseModel):
@@ -66,6 +66,7 @@ def get_appointment_agent(model_name: str | None = None) -> Agent:
         system_prompt = prompts.get("appointment_agent", "")
         _appointment_agent = Agent(
             model,
+            deps_type=AppointmentDeps,
             system_prompt=system_prompt,
         )
         _appointment_agent.tool(search_appointments)
@@ -79,7 +80,7 @@ def get_appointment_agent(model_name: str | None = None) -> Agent:
 
 
 async def search_appointments(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[AppointmentDeps],
     appointment_date: str | None = None,
     patient_id: int | None = None,
 ) -> AppointmentToolResult:
@@ -87,7 +88,7 @@ async def search_appointments(
         f"Searching appointments: date={appointment_date}, patient_id={patient_id}"
     )
     try:
-        appointments = crud.list_appointments(
+        appointments = ctx.deps.crud.list_appointments(
             appointment_date=appointment_date, patient_id=patient_id
         )
         if appointments:
@@ -111,12 +112,12 @@ async def search_appointments(
 
 
 async def get_appointment_by_id(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[AppointmentDeps],
     appointment_id: int,
 ) -> AppointmentToolResult:
     logger.info(f"Fetching appointment ID: {appointment_id}")
     try:
-        appointment = crud.get_appointment_by_id(appointment_id)
+        appointment = ctx.deps.crud.get_appointment_by_id(appointment_id)
         if appointment:
             return AppointmentToolResult(
                 success=True,
@@ -134,7 +135,7 @@ async def get_appointment_by_id(
 
 
 async def create_appointment(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[AppointmentDeps],
     patient_id: int,
     appointment_date: str,
     appointment_start_time: str,
@@ -153,8 +154,8 @@ async def create_appointment(
             appointment_reason=appointment_reason,
             created_by="agent",
         )
-        appointment_id = crud.create_appointment(appointment_create)
-        appointment = crud.get_appointment_by_id(appointment_id)
+        appointment_id = ctx.deps.crud.create_appointment(appointment_create)
+        appointment = ctx.deps.crud.get_appointment_by_id(appointment_id)
         if appointment:
             return AppointmentToolResult(
                 success=True,
@@ -172,7 +173,7 @@ async def create_appointment(
 
 
 async def update_appointment(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[AppointmentDeps],
     appointment_id: int,
     patient_id: int,
     appointment_date: str,
@@ -192,11 +193,11 @@ async def update_appointment(
             appointment_end_time=appointment_end_time,
             appointment_reason=appointment_reason,
         )
-        success = crud.update_appointment(
+        success = ctx.deps.crud.update_appointment(
             appointment_id, appointment_update, updated_by
         )
         if success:
-            appointment = crud.get_appointment_by_id(appointment_id)
+            appointment = ctx.deps.crud.get_appointment_by_id(appointment_id)
             if appointment:
                 return AppointmentToolResult(
                     success=True,
@@ -271,7 +272,10 @@ async def process_appointment_agent_request(
                         ModelResponse(parts=[TextPart(content=msg["content"])])
                     )
 
-        result = await agent_instance.run(prompt, message_history=pydantic_history)
+        deps = get_default_appointment_deps(request_id)
+        result = await agent_instance.run(
+            prompt, deps=deps, message_history=pydantic_history
+        )
         duration_ms = int((time.time() - start_time) * 1000)
 
         logger.info(f"Appointment agent result: {result.output}")

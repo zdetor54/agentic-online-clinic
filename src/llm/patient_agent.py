@@ -11,9 +11,9 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.azure import AzureProvider
 
-from src.api.patients import crud
 from src.api.patients.schemas import PatientCreate
 from src.core.llm_logger import get_llm_logger
+from src.llm.deps import PatientDeps, get_default_patient_deps
 
 
 class PatientToolResult(BaseModel):
@@ -68,6 +68,7 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
         system_prompt = prompts.get("patient_agent", "")
         _patient_agent = Agent(
             model,
+            deps_type=PatientDeps,
             system_prompt=system_prompt,
         )
         _patient_agent.tool(search_patients)
@@ -81,13 +82,13 @@ def get_patient_agent(model_name: str | None = None) -> Agent:
 
 
 async def search_patients(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[PatientDeps],
     name: str | None = None,
     phone: str | None = None,
 ) -> PatientToolResult:
     logger.info(f"Searching patients: name={name}, phone={phone}")
     try:
-        patients = crud.list_patients(name=name, phone=phone)
+        patients = ctx.deps.crud.list_patients(name=name, phone=phone)
         if patients:
             patient_list = [format_patient_info(p.model_dump()) for p in patients]
             return PatientToolResult(
@@ -107,12 +108,12 @@ async def search_patients(
 
 
 async def get_patient_by_id(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[PatientDeps],
     patient_id: int,
 ) -> PatientToolResult:
     logger.info(f"Fetching patient ID: {patient_id}")
     try:
-        patient = crud.get_patient_by_id(patient_id)
+        patient = ctx.deps.crud.get_patient_by_id(patient_id)
         if patient:
             return PatientToolResult(
                 success=True,
@@ -130,7 +131,7 @@ async def get_patient_by_id(
 
 
 async def create_patient(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[PatientDeps],
     first_name: str,
     last_name: str,
     date_of_birth: str,
@@ -159,8 +160,8 @@ async def create_patient(
             address=address.strip() if address else None,
             created_by="agent",
         )
-        patient_id = crud.create_patient(patient_create)
-        patient = crud.get_patient_by_id(patient_id)
+        patient_id = ctx.deps.crud.create_patient(patient_create)
+        patient = ctx.deps.crud.get_patient_by_id(patient_id)
         if patient:
             return PatientToolResult(
                 success=True,
@@ -178,7 +179,7 @@ async def create_patient(
 
 
 async def update_patient(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[PatientDeps],
     patient_id: int,
     first_name: str,
     last_name: str,
@@ -208,9 +209,9 @@ async def update_patient(
             email=email.strip() if email else None,
             address=address.strip() if address else None,
         )
-        success = crud.update_patient(patient_id, patient_update, updated_by)
+        success = ctx.deps.crud.update_patient(patient_id, patient_update, updated_by)
         if success:
-            patient = crud.get_patient_by_id(patient_id)
+            patient = ctx.deps.crud.get_patient_by_id(patient_id)
             if patient:
                 return PatientToolResult(
                     success=True,
@@ -285,7 +286,10 @@ async def process_patient_agent_request(
                         ModelResponse(parts=[TextPart(content=msg["content"])])
                     )
 
-        result = await agent_instance.run(prompt, message_history=pydantic_history)
+        deps = get_default_patient_deps(request_id)
+        result = await agent_instance.run(
+            prompt, deps=deps, message_history=pydantic_history
+        )
         duration_ms = int((time.time() - start_time) * 1000)
 
         logger.info(f"Patient agent result: {result.output}")

@@ -12,6 +12,7 @@ from pydantic_ai.providers.azure import AzureProvider
 
 from src.core.llm_logger import get_llm_logger
 from src.llm.appointment_agent import process_appointment_agent_request
+from src.llm.deps import OrchestratorDeps, get_default_orchestrator_deps
 from src.llm.patient_agent import process_patient_agent_request
 
 
@@ -26,7 +27,9 @@ class OrchestratorToolResult(BaseModel):
 _orchestrator_agent: Agent | None = None
 
 
-def get_orchestrator_agent(model_name: str | None = None) -> Agent:
+def get_orchestrator_agent(
+    model_name: str | None = None,
+) -> Agent:
     """
     Get or create the PydanticAI orchestrator agent instance.
 
@@ -61,6 +64,7 @@ def get_orchestrator_agent(model_name: str | None = None) -> Agent:
 
         _orchestrator_agent = Agent(
             model,
+            deps_type=OrchestratorDeps,
             system_prompt=system_prompt,
         )
         _orchestrator_agent.tool(delegate_to_patient_agent)
@@ -73,7 +77,7 @@ def get_orchestrator_agent(model_name: str | None = None) -> Agent:
 
 
 async def delegate_to_patient_agent(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[OrchestratorDeps],
     prompt: str,
     model_name: str | None = None,
 ) -> OrchestratorToolResult:
@@ -98,7 +102,7 @@ async def delegate_to_patient_agent(
             prompt=prompt,
             model_name=model_name,
             message_history=None,
-            request_id=None,
+            request_id=ctx.deps.request_id,
         )
 
         return OrchestratorToolResult(
@@ -116,7 +120,7 @@ async def delegate_to_patient_agent(
 
 
 async def delegate_to_appointment_agent(
-    ctx: RunContext[None],  # noqa: ARG001
+    ctx: RunContext[OrchestratorDeps],
     prompt: str,
     model_name: str | None = None,
 ) -> OrchestratorToolResult:
@@ -141,7 +145,7 @@ async def delegate_to_appointment_agent(
             prompt=prompt,
             model_name=model_name,
             message_history=None,
-            request_id=None,
+            request_id=ctx.deps.request_id,
         )
 
         return OrchestratorToolResult(
@@ -211,7 +215,11 @@ async def process_orchestrator_request(
                         ModelResponse(parts=[TextPart(content=msg["content"])])
                     )
 
-        result = await agent.run(prompt, message_history=pydantic_history)
+        result = await agent.run(
+            prompt,
+            deps=get_default_orchestrator_deps(request_id),
+            message_history=pydantic_history,
+        )
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Extract token usage from result
