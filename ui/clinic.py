@@ -371,6 +371,7 @@ else:
             st.query_params["create"] = "1"
             st.rerun()
 
+    search_failed = False
     if search_btn:
         try:
             params = {}
@@ -383,9 +384,21 @@ else:
                 st.session_state.search_results = resp.json()
             else:
                 st.error(f"Search failed: {resp.text}")
+                search_failed = True
                 st.session_state.search_results = []
+        except RequestsConnectionError:
+            st.error(
+                "Cannot connect to API server. Please start the FastAPI server and try again."
+            )
+            search_failed = True
+            st.session_state.search_results = []
+        except Timeout:
+            st.error("Search request timed out. Please try again.")
+            search_failed = True
+            st.session_state.search_results = []
         except Exception as e:
             st.error(f"Error searching patients: {e!s}")
+            search_failed = True
             st.session_state.search_results = []
 
     if st.session_state.search_results:
@@ -400,5 +413,5 @@ else:
             # Build hyperlink to patient page
             patient_link = f"<a href='?page=patient&patient_id={patient.get('id')}'>{patient_name}</a>"
             st.markdown(f"{patient_link}", unsafe_allow_html=True)
-    elif search_btn:
+    elif search_btn and not search_failed:
         st.info("No matching patients found.")

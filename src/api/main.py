@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from .agent_routes import agent_router
 from .appointments.routes import appointment_router
+from .database import initialize_database
 from .patients.routes import patient_router
 
 # Load environment variables from .env file
@@ -18,6 +19,8 @@ app = FastAPI(
     description="API for managing patient records in an online clinic",
     version="1.0.0",
 )
+
+initialize_database()
 
 # Include routers
 app.include_router(patient_router)
