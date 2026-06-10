@@ -3,7 +3,6 @@ import os
 
 import requests
 import streamlit as st
-from ai_cgi_branding import StreamlitUIService
 from loguru import logger
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout
@@ -18,21 +17,40 @@ HTTP_STATUS_CREATED = 201
 
 # Set page title and styling
 st.set_page_config(page_title="Patient Management")
-ui_service = StreamlitUIService()
-ui_service.load_css()
-logo_bytes = ui_service.get_logo("colour")
 st.markdown(
     """
     <style>
+    :root {
+        --clinic-primary: #0068c9;
+        --clinic-primary-hover: #0057a8;
+    }
+
     .stButton > button[data-testid="baseButton-primary"] {
-        background-color: rgb(227, 25, 55) !important;
-        border-color: rgb(227, 25, 55) !important;
+        background-color: var(--clinic-primary) !important;
+        border-color: var(--clinic-primary) !important;
+    }
+
+    .stButton > button[data-testid="baseButton-primary"]:hover {
+        background-color: var(--clinic-primary-hover) !important;
+        border-color: var(--clinic-primary-hover) !important;
+    }
+
+    .clinic-sidebar-mark {
+        border-left: 4px solid var(--clinic-primary);
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0.25rem 0 1rem;
+        padding-left: 0.75rem;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
-st.sidebar.image(logo_bytes, width=200)
+st.sidebar.markdown(
+    '<div class="clinic-sidebar-mark">Online Clinic</div>',
+    unsafe_allow_html=True,
+)
 st.sidebar.markdown("# Patient Management Application")
 st.sidebar.write("""
     The application is a production-style system used to manage core domain data and user workflows through a web interface.

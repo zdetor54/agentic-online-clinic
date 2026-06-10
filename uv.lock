@@ -23,7 +23,6 @@ name = "agentic-online-clinic"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "ai-cgi-branding" },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "loguru" },
@@ -48,7 +47,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ai-cgi-branding", git = "https://github.com/bjss/ai-cgi-branding.git" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "loguru", specifier = ">=0.7.3" },
@@ -69,18 +67,6 @@ dev = [
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "ruff", specifier = ">=0.12.9" },
     { name = "ty", specifier = ">=0.0.1a19" },
-]
-
-[[package]]
-name = "ai-cgi-branding"
-version = "0.1.0"
-source = { git = "https://github.com/bjss/ai-cgi-branding.git#7976fa19e15298a4498dfa0911c64db993a7ef56" }
-dependencies = [
-    { name = "loguru" },
-    { name = "pandas" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "streamlit" },
 ]
 
 [[package]]

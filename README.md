@@ -83,7 +83,6 @@ Docs & Standards: [AI Specialists SharePoint](https://bjss.sharepoint.com/sites/
   * Align `src/core/env.py` with `.env`/`.env.example`
 * Edit `configs/config.yaml`
   * Align `src/core/config.py` with `configs/config.yaml`
-* Setup PAT token and add to Github repo (see separate section below)
 ! uv sync --python .venv\Scripts\python.exe (gettign errors without it)
 
 Github settings suggestions:
@@ -160,14 +159,6 @@ uv remove pandas             # Remove a production dependency
 uv python list               # see list of installed python versions
 uv python install 3.12.9     # installs specific version of python
 ```
-
-## 🔒 Access: GitHub PAT Setup
-
-Required for private packages, (such as [ai-cgi-branding](https://github.com/bjss/ai-cgi-branding))
-
-1. GitHub > Settings > Developer Settings > Personal Access Tokens (classic)
-2. Generate token with `repo` scope
-3. Repo > Settings > Secrets > Actions > New: `GH_PAT`
 
 ## 🧪 Useful Dev commands
 
