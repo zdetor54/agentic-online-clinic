@@ -187,5 +187,5 @@ uv run pytest
 ```
 
 
-uvicorn src.api.main:app --reload
-streamlit run .\ui\clinic.py
+uv run uvicorn src.api.main:app --reload
+uv run streamlit run .\ui\clinic.py
