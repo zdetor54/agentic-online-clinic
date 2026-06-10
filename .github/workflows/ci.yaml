@@ -1,4 +1,5 @@
 name: CI
+
 on:
   push:
     branches: [main]
@@ -6,19 +7,11 @@ on:
 
 jobs:
   ci:
-    name: AI Specialist CI Pipeline
+    name: Project CI
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
-
-      - name: Setup Git authentication if token exists
-        if: env.GH_PAT != ''
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          echo "PAT exists, will use that in pipeline to install packages."
-          git config --global url."https://github-actions:${GH_PAT}@github.com/bjss/".insteadOf "https://github.com/bjss/"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -31,16 +24,3 @@ jobs:
 
       - name: Run tests
         run: uv run pytest tests/
-
-      - name: Show PAT instructions if install failed
-        if: failure()
-        run: |
-          echo "Pipeline failed, check the logs for more information."
-          echo "If the failure is related to installing private packages (like BJSS branding) you may need to set up the GH_PAT token:"
-          echo "--------------------------------"
-          echo "To create a token:"
-          echo "1. Go to GitHub Settings → Developer Settings → Personal Access Tokens → Tokens (classic)"
-          echo "2. Generate new token with 'repo' access, and copy the token"
-          echo "3. Add token to repository: Settings → Secrets and variables → Actions → New repository secret"
-          echo "4. Name it GH_PAT and paste the token (if you name it something else, you will need to update the ci.yaml file to match)"
-          exit 1
